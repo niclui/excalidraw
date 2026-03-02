@@ -504,6 +504,64 @@ describe("contextMenu element", () => {
     });
   });
 
+  it("selecting 'Add to components' in context menu adds element to components", async () => {
+    UI.clickTool("rectangle");
+    mouse.down(0, 0);
+    mouse.up(10, 10);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 3,
+      clientY: 3,
+    });
+    const contextMenu = UI.queryContextMenu();
+    fireEvent.click(queryByText(contextMenu!, "Add to components")!);
+
+    await waitFor(async () => {
+      const components = await h.app.components.getLatestComponents();
+      expect(components).toHaveLength(1);
+      expect(components[0].elements[0]).toEqual(h.elements[0]);
+      expect(components[0].scope).toBe("document");
+    });
+  });
+
+  it("selecting 'Detach component instance' in context menu detaches linked instance", async () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    await h.app.components.addComponent({
+      name: "CardComponent",
+      scope: "document",
+      ownerId: null,
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
+    const instanceElements = createComponentInstanceElements({
+      definition: component,
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+    const contextMenu = UI.queryContextMenu();
+    fireEvent.click(queryByText(contextMenu!, "Detach component instance")!);
+
+    await waitFor(() => {
+      expect(h.elements[0].customData?.component?.detachReason).toBe(
+        "detached-by-user",
+      );
+      expect(h.elements[0].customData?.component?.linked).toBe(false);
+    });
+  });
+
   it("selecting 'Duplicate' in context menu duplicates element", () => {
     UI.clickTool("rectangle");
     mouse.down(0, 0);
