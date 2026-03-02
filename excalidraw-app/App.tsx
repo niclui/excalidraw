@@ -60,6 +60,7 @@ import {
   parseLibraryTokensFromUrl,
   useHandleLibrary,
 } from "@excalidraw/excalidraw/data/library";
+import { useHandleComponents } from "@excalidraw/excalidraw";
 
 import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 import type { RestoredDataState } from "@excalidraw/excalidraw/data/restore";
@@ -117,6 +118,7 @@ import { updateStaleImageStatuses } from "./data/FileManager";
 import {
   importFromLocalStorage,
   importUsernameFromLocalStorage,
+  saveComponentsToLocalStorage,
 } from "./data/localStorage";
 
 import { loadFilesFromFirebase } from "./data/firebase";
@@ -126,6 +128,7 @@ import {
   LocalData,
   localStorageQuotaExceededAtom,
 } from "./data/LocalData";
+import { ComponentPersistenceAdapter } from "./data/ComponentData";
 import { isBrowserStorageStateNewer } from "./data/tabSync";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
@@ -241,6 +244,7 @@ const initializeScene = async (opts: {
       deleteInvisibleElements: true,
     }),
     appState: restoreAppState(localDataState?.appState, null),
+    components: localDataState?.components || [],
   };
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
@@ -274,6 +278,7 @@ const initializeScene = async (opts: {
             // localStorage user settings which we do not persist on server.
             localDataState?.appState,
           ),
+          components: imported.components || [],
         };
       }
       scene.scrollToContent = true;
@@ -414,6 +419,11 @@ const ExcalidrawWrapper = () => {
     adapter: LibraryIndexedDBAdapter,
     // TODO maybe remove this in several months (shipped: 24-03-11)
     migrationAdapter: LibraryLocalStorageMigrationAdapter,
+  });
+
+  useHandleComponents({
+    excalidrawAPI,
+    adapter: ComponentPersistenceAdapter,
   });
 
   const [, forceRefresh] = useState(false);
@@ -720,6 +730,10 @@ const ExcalidrawWrapper = () => {
       throw new Error(t("alerts.cannotExportEmptyCanvas"));
     }
     try {
+      const documentComponents =
+        (await excalidrawAPI?.getComponents?.())?.filter(
+          (component) => component.scope === "document",
+        ) || [];
       const { url, errorMessage } = await exportToBackend(
         exportedElements,
         {
@@ -729,6 +743,7 @@ const ExcalidrawWrapper = () => {
             : getDefaultAppState().viewBackgroundColor,
         },
         files,
+        documentComponents,
       );
 
       if (errorMessage) {
@@ -841,6 +856,7 @@ const ExcalidrawWrapper = () => {
       <Excalidraw
         excalidrawAPI={excalidrawRefCallback}
         onChange={onChange}
+        onComponentsChange={saveComponentsToLocalStorage}
         initialData={initialStatePromiseRef.current.promise}
         isCollaborating={isCollaborating}
         onPointerUpdate={collabAPI?.onPointerUpdate}

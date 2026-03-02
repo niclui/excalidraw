@@ -57,6 +57,7 @@ import type { FileSystemHandle } from "./data/filesystem";
 import type { ContextMenuItems } from "./components/ContextMenu";
 import type { SnapLine } from "./snapping";
 import type { ImportedDataState } from "./data/types";
+import type Components from "./data/components";
 
 import type { Language } from "./i18n";
 import type { isOverScrollBars } from "./scene/scrollbars";
@@ -384,6 +385,7 @@ export interface AppState {
     | { name: "settings" }
     | { name: "elementLinkSelector"; sourceElementId: ExcalidrawElement["id"] }
     | { name: "charts"; data: Spreadsheet; rawText: string };
+  editingComponentId: string | null;
   /**
    * Reflects user preference for whether the default sidebar should be docked.
    *
@@ -525,10 +527,44 @@ export type LibraryItemsSource =
   | MaybePromise<LibraryItems_anyVersion | Blob>;
 // -----------------------------------------------------------------------------
 
+// components
+// -----------------------------------------------------------------------------
+export type ComponentScope = "document" | "personal";
+
+export type LinkedComponentMetadata = {
+  definitionId: string;
+  instanceId: string;
+  sourceElementId: ExcalidrawElement["id"];
+  linked: boolean;
+  detachedAt?: number;
+  detachReason?: string;
+};
+
+export type ComponentDefinition = {
+  id: string;
+  scope: ComponentScope;
+  name: string;
+  elements: readonly NonDeleted<ExcalidrawElement>[];
+  created: number;
+  updated: number;
+  ownerId: string | null;
+};
+
+export type ComponentDefinitions = readonly ComponentDefinition[];
+export type ComponentDefinitions_anyVersion = ComponentDefinitions;
+
+export type ComponentDefinitionsSource =
+  | ((
+      currentComponents: ComponentDefinitions,
+    ) => MaybePromise<ComponentDefinitions_anyVersion | Blob>)
+  | MaybePromise<ComponentDefinitions_anyVersion | Blob>;
+// -----------------------------------------------------------------------------
+
 export type ExcalidrawInitialDataState = Merge<
   ImportedDataState,
   {
     libraryItems?: MaybePromise<Required<ImportedDataState>["libraryItems"]>;
+    components?: MaybePromise<Required<ImportedDataState>["components"]>;
   }
 >;
 
@@ -599,6 +635,9 @@ export interface ExcalidrawProps {
   detectScroll?: boolean;
   handleKeyboardGlobally?: boolean;
   onLibraryChange?: (libraryItems: LibraryItems) => void | Promise<any>;
+  onComponentsChange?: (
+    components: ComponentDefinitions,
+  ) => void | Promise<any>;
   autoFocus?: boolean;
   generateIdForFile?: (file: File) => string | Promise<string>;
   generateLinkForSelection?: (id: string, type: "element" | "group") => string;
@@ -637,6 +676,7 @@ export interface ExcalidrawProps {
 export type SceneData = {
   elements?: ImportedDataState["elements"];
   appState?: ImportedDataState["appState"];
+  components?: ImportedDataState["components"];
   collaborators?: Map<SocketId, Collaborator>;
   captureUpdate?: CaptureUpdateActionType;
 };
@@ -715,6 +755,7 @@ export type AppClassProperties = {
   canvas: HTMLCanvasElement;
   focusContainer(): void;
   library: Library;
+  components: Components;
   imageCache: Map<
     FileId,
     {
@@ -750,6 +791,15 @@ export type AppClassProperties = {
   getEditorUIOffsets: App["getEditorUIOffsets"];
   visibleElements: App["visibleElements"];
   excalidrawContainerValue: App["excalidrawContainerValue"];
+  enterComponentEditMode: App["enterComponentEditMode"];
+  saveComponentEditMode: App["saveComponentEditMode"];
+  cancelComponentEditMode: App["cancelComponentEditMode"];
+  removeComponentDefinition: App["removeComponentDefinition"];
+  getCurrentUserId: App["getCurrentUserId"];
+  canEditComponentDefinition: App["canEditComponentDefinition"];
+  createComponentFromSelection: App["createComponentFromSelection"];
+  editComponentFromSelectedInstance: App["editComponentFromSelectedInstance"];
+  detachSelectedComponentInstances: App["detachSelectedComponentInstances"];
 
   onPointerUpEmitter: App["onPointerUpEmitter"];
   updateEditorAtom: App["updateEditorAtom"];
@@ -834,6 +884,7 @@ export interface ExcalidrawImperativeAPI {
   applyDeltas: InstanceType<typeof App>["applyDeltas"];
   mutateElement: InstanceType<typeof App>["mutateElement"];
   updateLibrary: InstanceType<typeof Library>["updateLibrary"];
+  updateComponents: InstanceType<typeof Components>["updateComponents"];
   resetScene: InstanceType<typeof App>["resetScene"];
   getSceneElementsIncludingDeleted: InstanceType<
     typeof App
@@ -847,6 +898,7 @@ export interface ExcalidrawImperativeAPI {
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
+  getComponents: InstanceType<typeof Components>["getLatestComponents"];
   getName: InstanceType<typeof App>["getName"];
   scrollToContent: InstanceType<typeof App>["scrollToContent"];
   registerAction: (action: Action) => void;

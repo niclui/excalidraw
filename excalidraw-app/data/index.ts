@@ -25,6 +25,7 @@ import type {
   AppState,
   BinaryFileData,
   BinaryFiles,
+  ComponentDefinitions,
   SocketId,
 } from "@excalidraw/excalidraw/types";
 import type { MakeBrand } from "@excalidraw/common/utility-types";
@@ -196,6 +197,7 @@ const legacy_decodeFromBackend = async ({
   return {
     elements: data.elements || null,
     appState: data.appState || null,
+    components: data.components || [],
   };
 };
 
@@ -226,6 +228,7 @@ export const importFromBackend = async (
       return {
         elements: data.elements || null,
         appState: data.appState || null,
+        components: data.components || [],
       };
     } catch (error: any) {
       console.warn(
@@ -249,12 +252,13 @@ export const exportToBackend = async (
   elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
   files: BinaryFiles,
+  components: ComponentDefinitions = [],
 ): Promise<ExportToBackendResult> => {
   const encryptionKey = await generateEncryptionKey("string");
 
   const payload = await compressData(
     new TextEncoder().encode(
-      serializeAsJSON(elements, appState, files, "database"),
+      serializeAsJSON(elements, appState, files, "database", components),
     ),
     { encryptionKey },
   );

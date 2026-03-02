@@ -8,6 +8,7 @@ import type { CaptureUpdateActionType } from "@excalidraw/element";
 import type {
   AppClassProperties,
   AppState,
+  ComponentDefinitions,
   ExcalidrawProps,
   BinaryFiles,
   UIAppState,
@@ -27,6 +28,7 @@ export type ActionResult =
       elements?: readonly ExcalidrawElement[] | null;
       appState?: Partial<AppState> | null;
       files?: BinaryFiles | null;
+      components?: ComponentDefinitions | null;
       captureUpdate: CaptureUpdateActionType;
       replaceFiles?: boolean;
     }
@@ -142,7 +144,10 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleLassoTool"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "addToComponents"
+  | "detachComponentInstance"
+  | "editComponentMaster";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

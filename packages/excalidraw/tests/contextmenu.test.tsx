@@ -8,6 +8,7 @@ import { setDateTimeForTests } from "@excalidraw/common";
 import { copiedStyles } from "../actions/actionStyles";
 import { Excalidraw } from "../index";
 import * as StaticScene from "../renderer/staticScene";
+import { createComponentInstanceElements } from "../data/components";
 
 import { API } from "./helpers/api";
 import { UI, Pointer, Keyboard } from "./helpers/ui";
@@ -26,7 +27,6 @@ import {
   checkpointHistory,
 } from "./test-utils";
 
-import type { ShortcutName } from "../actions/shortcuts";
 import type { ActionName } from "../actions/types";
 
 const checkpoint = (name: string) => {
@@ -48,6 +48,7 @@ unmountComponent();
 
 const renderStaticScene = vi.spyOn(StaticScene, "renderStaticScene");
 beforeEach(() => {
+  delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
   localStorage.clear();
   renderStaticScene.mockClear();
   reseed(7);
@@ -57,12 +58,14 @@ const { h } = window;
 
 describe("contextMenu element", () => {
   beforeEach(async () => {
+    delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
     localStorage.clear();
     renderStaticScene.mockClear();
     reseed(7);
     setDateTimeForTests("201933152653");
 
     await render(<Excalidraw handleKeyboardGlobally={true} />);
+    await h.app.components.resetComponents();
   });
 
   beforeAll(() => {
@@ -89,7 +92,7 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "paste",
       "selectAll",
       "gridMode",
@@ -100,10 +103,10 @@ describe("contextMenu element", () => {
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -130,6 +133,7 @@ describe("contextMenu element", () => {
       "pasteStyles",
       "deleteSelectedElements",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",
@@ -149,6 +153,82 @@ describe("contextMenu element", () => {
         contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
+  });
+
+  it("shows component actions for linked component instance", async () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    await h.app.components.addComponent({
+      name: "CardComponent",
+      scope: "document",
+      ownerId: null,
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
+    const instanceElements = createComponentInstanceElements({
+      definition: component,
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const contextMenu = UI.queryContextMenu();
+    expect(contextMenu).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="editComponentMaster"]'),
+    ).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="detachComponentInstance"]'),
+    ).not.toBeNull();
+  });
+
+  it("hides edit component action for non-owner linked instances", async () => {
+    (window as any).EXCALIDRAW_COMPONENTS_USER_ID = "viewer-user-id";
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    await h.app.components.addComponent({
+      name: "SharedComponent",
+      scope: "document",
+      ownerId: "owner-user-id",
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
+    const instanceElements = createComponentInstanceElements({
+      definition: component,
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const contextMenu = UI.queryContextMenu();
+    expect(contextMenu).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="editComponentMaster"]'),
+    ).toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="detachComponentInstance"]'),
+    ).not.toBeNull();
+    delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
   });
 
   it("shows context menu for element", () => {
@@ -215,7 +295,7 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "cut",
       "copy",
       "paste",
@@ -225,6 +305,7 @@ describe("contextMenu element", () => {
       "deleteSelectedElements",
       "group",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",
@@ -236,10 +317,10 @@ describe("contextMenu element", () => {
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -283,6 +364,7 @@ describe("contextMenu element", () => {
       "copyElementLink",
       "ungroup",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",
@@ -419,6 +501,64 @@ describe("contextMenu element", () => {
     await waitFor(async () => {
       const libraryItems = await h.app.library.getLatestLibrary();
       expect(libraryItems[0].elements[0]).toEqual(h.elements[0]);
+    });
+  });
+
+  it("selecting 'Add to components' in context menu adds element to components", async () => {
+    UI.clickTool("rectangle");
+    mouse.down(0, 0);
+    mouse.up(10, 10);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 3,
+      clientY: 3,
+    });
+    const contextMenu = UI.queryContextMenu();
+    fireEvent.click(queryByText(contextMenu!, "Add to components")!);
+
+    await waitFor(async () => {
+      const components = await h.app.components.getLatestComponents();
+      expect(components).toHaveLength(1);
+      expect(components[0].elements[0]).toEqual(h.elements[0]);
+      expect(components[0].scope).toBe("document");
+    });
+  });
+
+  it("selecting 'Detach component instance' in context menu detaches linked instance", async () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    await h.app.components.addComponent({
+      name: "CardComponent",
+      scope: "document",
+      ownerId: null,
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
+    const instanceElements = createComponentInstanceElements({
+      definition: component,
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+    const contextMenu = UI.queryContextMenu();
+    fireEvent.click(queryByText(contextMenu!, "Detach component instance")!);
+
+    await waitFor(() => {
+      expect(h.elements[0].customData?.component?.detachReason).toBe(
+        "detached-by-user",
+      );
+      expect(h.elements[0].customData?.component?.linked).toBe(false);
     });
   });
 

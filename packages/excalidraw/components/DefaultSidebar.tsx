@@ -2,6 +2,7 @@ import clsx from "clsx";
 
 import {
   CANVAS_SEARCH_TAB,
+  COMPONENTS_SIDEBAR_TAB,
   DEFAULT_SIDEBAR,
   LIBRARY_SIDEBAR_TAB,
   composeEventHandlers,
@@ -11,15 +12,17 @@ import type { MarkOptional, Merge } from "@excalidraw/common/utility-types";
 
 import { useTunnels } from "../context/tunnels";
 import { useUIAppState } from "../context/ui-appState";
+import { t } from "../i18n";
 
 import "../components/dropdownMenu/DropdownMenu.scss";
 
 import { useExcalidrawSetAppState } from "./App";
 import { LibraryMenu } from "./LibraryMenu";
+import { ComponentsMenu } from "./ComponentsMenu";
 import { SearchMenu } from "./SearchMenu";
 import { Sidebar } from "./Sidebar/Sidebar";
 import { withInternalFallback } from "./hoc/withInternalFallback";
-import { LibraryIcon, searchIcon } from "./icons";
+import { LibraryIcon, searchIcon, stackPushIcon } from "./icons";
 
 import type { SidebarProps, SidebarTriggerProps } from "./Sidebar/common";
 
@@ -99,15 +102,33 @@ export const DefaultSidebar = Object.assign(
           <Sidebar.Tabs>
             <Sidebar.Header>
               <Sidebar.TabTriggers>
-                <Sidebar.TabTrigger tab={CANVAS_SEARCH_TAB}>
+                <Sidebar.TabTrigger
+                  tab={CANVAS_SEARCH_TAB}
+                  title={t("search.title")}
+                  aria-label={t("search.title")}
+                >
                   {searchIcon}
                 </Sidebar.TabTrigger>
-                <Sidebar.TabTrigger tab={LIBRARY_SIDEBAR_TAB}>
+                <Sidebar.TabTrigger
+                  tab={COMPONENTS_SIDEBAR_TAB}
+                  title={t("labels.searchComponents")}
+                  aria-label={t("labels.searchComponents")}
+                >
+                  {stackPushIcon}
+                </Sidebar.TabTrigger>
+                <Sidebar.TabTrigger
+                  tab={LIBRARY_SIDEBAR_TAB}
+                  title={t("labels.libraries")}
+                  aria-label={t("labels.libraries")}
+                >
                   {LibraryIcon}
                 </Sidebar.TabTrigger>
                 <DefaultSidebarTabTriggersTunnel.Out />
               </Sidebar.TabTriggers>
             </Sidebar.Header>
+            <Sidebar.Tab tab={COMPONENTS_SIDEBAR_TAB}>
+              <ComponentsMenu />
+            </Sidebar.Tab>
             <Sidebar.Tab tab={LIBRARY_SIDEBAR_TAB}>
               <LibraryMenu />
             </Sidebar.Tab>

@@ -13,7 +13,12 @@ import { cleanAppStateForExport, clearAppStateForDatabase } from "../appState";
 import { isImageFileHandle, loadFromBlob } from "./blob";
 import { fileOpen, fileSave } from "./filesystem";
 
-import type { AppState, BinaryFiles, LibraryItems } from "../types";
+import type {
+  AppState,
+  BinaryFiles,
+  ComponentDefinitions,
+  LibraryItems,
+} from "../types";
 import type {
   ExportedDataState,
   ImportedDataState,
@@ -47,6 +52,7 @@ export const serializeAsJSON = (
   appState: Partial<AppState>,
   files: BinaryFiles,
   type: "local" | "database",
+  components: ComponentDefinitions = [],
 ): string => {
   const data: ExportedDataState = {
     type: EXPORT_DATA_TYPES.excalidraw,
@@ -62,6 +68,7 @@ export const serializeAsJSON = (
         ? filterOutDeletedFiles(elements, files)
         : // will be stripped from JSON
           undefined,
+    components,
   };
 
   return JSON.stringify(data, null, 2);
@@ -73,8 +80,15 @@ export const saveAsJSON = async (
   files: BinaryFiles,
   /** filename */
   name: string = appState.name || DEFAULT_FILENAME,
+  components: ComponentDefinitions = [],
 ) => {
-  const serialized = serializeAsJSON(elements, appState, files, "local");
+  const serialized = serializeAsJSON(
+    elements,
+    appState,
+    files,
+    "local",
+    components,
+  );
   const blob = new Blob([serialized], {
     type: MIME_TYPES.excalidraw,
   });

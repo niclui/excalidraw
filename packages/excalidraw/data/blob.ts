@@ -24,6 +24,7 @@ import {
   restoreElements,
   restoreLibraryItems,
 } from "./restore";
+import { restoreComponentDefinitions } from "./components";
 
 import type { AppState, DataURL, LibraryItem } from "../types";
 
@@ -176,6 +177,7 @@ export const loadSceneOrLibraryFromBlob = async (
             localAppState,
           ),
           files: data.files || {},
+          components: restoreComponentDefinitions(data.components || []),
         },
       };
     } else if (isValidLibrary(data)) {

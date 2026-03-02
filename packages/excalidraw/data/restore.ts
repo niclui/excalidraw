@@ -85,6 +85,7 @@ import {
 import type {
   AppState,
   BinaryFiles,
+  ComponentDefinitions,
   LibraryItem,
   NormalizedZoomValue,
 } from "../types";
@@ -122,6 +123,7 @@ export type RestoredDataState = {
   elements: OrderedExcalidrawElement[];
   appState: RestoredAppState;
   files: BinaryFiles;
+  components?: ComponentDefinitions;
 };
 
 const getFontFamilyByName = (fontFamilyName: string): FontFamilyValues => {
@@ -966,6 +968,7 @@ export const restoreAppState = (
       isFiniteNumber(appState.gridStep) ? appState.gridStep : DEFAULT_GRID_STEP,
     ),
     editingFrame: null,
+    editingComponentId: null,
   };
 };
 

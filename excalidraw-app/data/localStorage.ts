@@ -4,7 +4,10 @@ import {
 } from "@excalidraw/excalidraw/appState";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
-import type { AppState } from "@excalidraw/excalidraw/types";
+import type {
+  AppState,
+  ComponentDefinitions,
+} from "@excalidraw/excalidraw/types";
 
 import { STORAGE_KEYS } from "../app_constants";
 
@@ -37,10 +40,14 @@ export const importUsernameFromLocalStorage = (): string | null => {
 export const importFromLocalStorage = () => {
   let savedElements = null;
   let savedState = null;
+  let savedComponents = null;
 
   try {
     savedElements = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS);
     savedState = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_APP_STATE);
+    savedComponents = localStorage.getItem(
+      STORAGE_KEYS.LOCAL_STORAGE_COMPONENTS,
+    );
   } catch (error: any) {
     // Unable to access localStorage
     console.error(error);
@@ -70,7 +77,32 @@ export const importFromLocalStorage = () => {
       // Do nothing because appState is already null
     }
   }
-  return { elements, appState };
+
+  let components: ComponentDefinitions = [];
+  if (savedComponents) {
+    try {
+      components = JSON.parse(savedComponents) as ComponentDefinitions;
+    } catch (error: any) {
+      console.error(error);
+    }
+  }
+
+  return { elements, appState, components };
+};
+
+export const saveComponentsToLocalStorage = (
+  components: ComponentDefinitions,
+) => {
+  try {
+    localStorage.setItem(
+      STORAGE_KEYS.LOCAL_STORAGE_COMPONENTS,
+      JSON.stringify(
+        components.filter((component) => component.scope === "document"),
+      ),
+    );
+  } catch (error: any) {
+    console.error(error);
+  }
 };
 
 export const getElementsStorageSize = () => {

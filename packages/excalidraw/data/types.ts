@@ -6,6 +6,9 @@ import type { cleanAppStateForExport } from "../appState";
 import type {
   AppState,
   BinaryFiles,
+  ComponentDefinition,
+  ComponentDefinitions,
+  ComponentDefinitions_anyVersion,
   LibraryItem,
   LibraryItems,
   LibraryItems_anyVersion,
@@ -18,6 +21,7 @@ export interface ExportedDataState {
   elements: readonly ExcalidrawElement[];
   appState: ReturnType<typeof cleanAppStateForExport>;
   files: BinaryFiles | undefined;
+  components?: ComponentDefinitions;
 }
 
 /**
@@ -46,6 +50,7 @@ export interface ImportedDataState {
   > | null;
   scrollToContent?: boolean;
   libraryItems?: LibraryItems_anyVersion;
+  components?: ComponentDefinitions_anyVersion;
   files?: BinaryFiles;
 }
 
@@ -63,4 +68,8 @@ export interface ImportedLibraryData extends Partial<ExportedLibraryData> {
 
 export type ExcalidrawLibraryIds = {
   itemIds: LibraryItem["id"][];
+};
+
+export type ExcalidrawComponentIds = {
+  itemIds: ComponentDefinition["id"][];
 };
