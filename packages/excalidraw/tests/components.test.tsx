@@ -138,4 +138,53 @@ describe("components", () => {
       expect(instanceRectAfter.customData?.component?.linked).toBe(true);
     });
   });
+
+  it("detaches linked instances when document component is remotely updated", async () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      width: 60,
+      height: 40,
+      backgroundColor: "transparent",
+    });
+    await h.app.components.addComponent({
+      name: "CardComponent",
+      scope: "document",
+      ownerId: null,
+      elements: [rectangle],
+    });
+
+    const [component] = await h.app.components.getLatestComponents();
+    await API.drop([
+      {
+        kind: "string",
+        type: MIME_TYPES.excalidrawcomponentIds,
+        value: JSON.stringify({ itemIds: [component.id] }),
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(h.elements).toHaveLength(1);
+      expect(h.elements[0].customData?.component?.linked).toBe(true);
+      expect(h.elements[0].backgroundColor).toBe("transparent");
+    });
+
+    h.app.updateScene({
+      components: [
+        {
+          ...component,
+          elements: [
+            {
+              ...component.elements[0],
+              backgroundColor: "#fab005",
+            },
+          ],
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(h.elements[0].customData?.component?.linked).toBe(false);
+      expect(h.elements[0].backgroundColor).toBe("transparent");
+    });
+  });
 });

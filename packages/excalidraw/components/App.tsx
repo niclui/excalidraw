@@ -361,6 +361,7 @@ import Components, {
   applyComponentDefinitionToLinkedInstance,
   createComponentInstanceElements,
   detachComponentInstanceElements,
+  getComponentHash,
   getLinkedComponentMetadata,
   isLinkedComponentElement,
   mergeComponentDefinitions,
@@ -2695,7 +2696,9 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     if (actionResult.components) {
-      this.applyDocumentComponents(actionResult.components);
+      this.applyDocumentComponents(actionResult.components, {
+        detachLinkedOnChanges: !actionResult.elements,
+      });
     }
 
     if (actionResult.appState || editingTextElement || this.state.contextMenu) {
@@ -2804,6 +2807,11 @@ class App extends React.Component<AppProps, AppState> {
 
   private applyDocumentComponents = (
     sceneComponents: ComponentDefinitions = [],
+    {
+      detachLinkedOnChanges = false,
+    }: {
+      detachLinkedOnChanges?: boolean;
+    } = {},
   ) => {
     const restored = restoreComponentDefinitions(sceneComponents).map(
       (component) => ({
@@ -2811,6 +2819,66 @@ class App extends React.Component<AppProps, AppState> {
         scope: "document" as const,
       }),
     );
+
+    if (detachLinkedOnChanges) {
+      const currentDocumentComponents = this.components
+        .getCurrentComponents()
+        .filter((component) => component.scope === "document");
+      const nextDocumentById = arrayToMap(restored);
+      const changedDefinitionIds = new Set<string>();
+
+      for (const component of currentDocumentComponents) {
+        const nextComponent = nextDocumentById.get(component.id);
+        if (!nextComponent) {
+          changedDefinitionIds.add(component.id);
+          continue;
+        }
+        if (getComponentHash(component) !== getComponentHash(nextComponent)) {
+          changedDefinitionIds.add(component.id);
+        }
+      }
+
+      if (changedDefinitionIds.size) {
+        const linkedInstanceIdsByDefinition = new Map<string, Set<string>>();
+        for (const element of this.scene.getElementsIncludingDeleted()) {
+          const metadata = getLinkedComponentMetadata(element);
+          if (
+            !metadata?.linked ||
+            !changedDefinitionIds.has(metadata.definitionId)
+          ) {
+            continue;
+          }
+          const instanceIds =
+            linkedInstanceIdsByDefinition.get(metadata.definitionId) ||
+            new Set();
+          instanceIds.add(metadata.instanceId);
+          linkedInstanceIdsByDefinition.set(metadata.definitionId, instanceIds);
+        }
+
+        if (linkedInstanceIdsByDefinition.size) {
+          let nextElements = this.scene.getElementsIncludingDeleted();
+          for (const [
+            definitionId,
+            instanceIds,
+          ] of linkedInstanceIdsByDefinition) {
+            nextElements = this.detachLinkedComponentInstances(
+              definitionId,
+              Array.from(instanceIds),
+              "remote-component-update",
+              nextElements,
+            );
+          }
+          this.suppressLinkedComponentDetach = true;
+          this.updateScene({
+            elements: nextElements,
+            captureUpdate: CaptureUpdateAction.NEVER,
+          });
+          setTimeout(() => {
+            this.suppressLinkedComponentDetach = false;
+          });
+        }
+      }
+    }
 
     this.components.setComponents((current) => {
       const personal = current.filter(
@@ -4797,6 +4865,7 @@ class App extends React.Component<AppProps, AppState> {
       elements?: SceneData["elements"];
       appState?: Pick<AppState, K> | null;
       collaborators?: SceneData["collaborators"];
+      components?: SceneData["components"];
       /**
        *  Controls which updates should be captured by the `Store`. Captured updates are emmitted and listened to by other components, such as `History` for undo / redo purposes.
        *
@@ -4810,7 +4879,8 @@ class App extends React.Component<AppProps, AppState> {
        */
       captureUpdate?: SceneData["captureUpdate"];
     }) => {
-      const { elements, appState, collaborators, captureUpdate } = sceneData;
+      const { elements, appState, collaborators, captureUpdate, components } =
+        sceneData;
 
       if (captureUpdate) {
         const nextElements = elements ? elements : undefined;
@@ -4838,6 +4908,12 @@ class App extends React.Component<AppProps, AppState> {
 
       if (collaborators) {
         this.setState({ collaborators });
+      }
+
+      if (components) {
+        this.applyDocumentComponents(components, {
+          detachLinkedOnChanges: !elements,
+        });
       }
     },
   );

@@ -366,14 +366,10 @@ export const applyComponentDefinitionToLinkedInstance = <
   };
 };
 
-const getComponentHash = (item: ComponentDefinition) => {
+export const getComponentHash = (item: ComponentDefinition) => {
   return `${item.id}:${item.name}:${item.scope}:${
     item.ownerId || ""
-  }:${hashString(
-    JSON.stringify(
-      item.elements.map((element) => `${element.id}:${element.version}`),
-    ),
-  )}`;
+  }:${hashString(JSON.stringify(item.elements))}`;
 };
 
 export const getComponentDefinitionsHash = (
@@ -511,6 +507,10 @@ class Components {
 
   getComponentById = (id: ComponentDefinition["id"]) => {
     return this.currComponents.find((item) => item.id === id) || null;
+  };
+
+  getCurrentComponents = () => {
+    return cloneComponentDefinitions(this.currComponents);
   };
 
   addComponent = async ({
