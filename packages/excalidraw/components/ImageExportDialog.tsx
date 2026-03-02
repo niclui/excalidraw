@@ -18,6 +18,10 @@ import {
   actionChangeExportScale,
   actionChangeProjectName,
 } from "../actions/actionExport";
+import {
+  getBuildUpAnimationElementsForStep,
+  getMaxBuildUpAnimationStep,
+} from "../buildUpAnimation";
 import { probablySupportsClipboardBlob } from "../clipboard";
 import { prepareElementsForExport } from "../data";
 import { canvasToBlob } from "../data/blob";
@@ -27,7 +31,13 @@ import { useCopyStatus } from "../hooks/useCopiedIndicator";
 import { t } from "../i18n";
 import { isSomeElementSelected } from "../scene";
 
-import { copyIcon, downloadIcon, helpIcon } from "./icons";
+import {
+  copyIcon,
+  downloadIcon,
+  helpIcon,
+  playerPlayIcon,
+  playerStopFilledIcon,
+} from "./icons";
 import { Dialog } from "./Dialog";
 import { RadioGroup } from "./RadioGroup";
 import { Switch } from "./Switch";
@@ -110,6 +120,42 @@ const ImageExportModal = ({
     appStateSnapshot,
     exportSelectionOnly,
   );
+  const maxBuildUpStep = getMaxBuildUpAnimationStep(exportedElements);
+  const hasBuildUpAnimation = maxBuildUpStep > 0;
+  const [buildUpPreviewStep, setBuildUpPreviewStep] = useState(0);
+  const [isBuildUpPreviewPlaying, setIsBuildUpPreviewPlaying] = useState(false);
+
+  useEffect(() => {
+    setBuildUpPreviewStep((currentStep) => {
+      return Math.max(0, Math.min(currentStep, maxBuildUpStep));
+    });
+    if (!hasBuildUpAnimation) {
+      setIsBuildUpPreviewPlaying(false);
+    }
+  }, [hasBuildUpAnimation, maxBuildUpStep]);
+
+  useEffect(() => {
+    if (!hasBuildUpAnimation || !isBuildUpPreviewPlaying) {
+      return;
+    }
+
+    const timeout = window.setInterval(() => {
+      setBuildUpPreviewStep((currentStep) => {
+        if (currentStep >= maxBuildUpStep) {
+          return 0;
+        }
+        return currentStep + 1;
+      });
+    }, 800);
+
+    return () => {
+      clearInterval(timeout);
+    };
+  }, [hasBuildUpAnimation, isBuildUpPreviewPlaying, maxBuildUpStep]);
+
+  const previewElements = hasBuildUpAnimation
+    ? getBuildUpAnimationElementsForStep(exportedElements, buildUpPreviewStep)
+    : exportedElements;
 
   useEffect(() => {
     const previewNode = previewRef.current;
@@ -123,7 +169,7 @@ const ImageExportModal = ({
     }
 
     exportToCanvas({
-      elements: exportedElements,
+      elements: previewElements,
       appState: {
         ...appStateSnapshot,
         name: projectName,
@@ -159,13 +205,14 @@ const ImageExportModal = ({
   }, [
     appStateSnapshot,
     files,
-    exportedElements,
+    previewElements,
     exportingFrame,
     projectName,
     exportWithBackground,
     exportDarkMode,
     exportScale,
     embedScene,
+    buildUpPreviewStep,
   ]);
 
   return (
@@ -262,6 +309,57 @@ const ImageExportModal = ({
             }}
           />
         </ExportSetting>
+        {hasBuildUpAnimation && (
+          <ExportSetting
+            label={t("imageExportDialog.label.buildUpPreview")}
+            name="buildUpPreview"
+          >
+            <div className="ImageExportModal__build-up-preview">
+              <button
+                type="button"
+                className="ImageExportModal__build-up-preview__button"
+                title={
+                  isBuildUpPreviewPlaying
+                    ? t("imageExportDialog.button.stopPreview")
+                    : t("imageExportDialog.button.playPreview")
+                }
+                aria-label={
+                  isBuildUpPreviewPlaying
+                    ? t("imageExportDialog.button.stopPreview")
+                    : t("imageExportDialog.button.playPreview")
+                }
+                onClick={() => {
+                  setIsBuildUpPreviewPlaying((isPlaying) => !isPlaying);
+                }}
+              >
+                {isBuildUpPreviewPlaying
+                  ? playerStopFilledIcon
+                  : playerPlayIcon}
+              </button>
+              <input
+                type="number"
+                min={0}
+                max={maxBuildUpStep}
+                step={1}
+                className="TextInput ImageExportModal__build-up-preview__input"
+                value={buildUpPreviewStep}
+                onChange={(event) => {
+                  const parsedStep = Number(event.target.value);
+                  if (!Number.isFinite(parsedStep)) {
+                    return;
+                  }
+                  setBuildUpPreviewStep(
+                    Math.max(0, Math.min(Math.trunc(parsedStep), maxBuildUpStep)),
+                  );
+                  setIsBuildUpPreviewPlaying(false);
+                }}
+              />
+              <span className="ImageExportModal__build-up-preview__max-step">
+                / {maxBuildUpStep}
+              </span>
+            </div>
+          </ExportSetting>
+        )}
         <ExportSetting
           label={t("imageExportDialog.label.scale")}
           name="exportScale"
@@ -292,6 +390,18 @@ const ImageExportModal = ({
             icon={downloadIcon}
           >
             {t("imageExportDialog.button.exportToPng")}
+          </FilledButton>
+          <FilledButton
+            className="ImageExportModal__settings__buttons__button"
+            label={t("imageExportDialog.title.exportToGif")}
+            onClick={() =>
+              onExportImage(EXPORT_IMAGE_TYPES.gif, exportedElements, {
+                exportingFrame,
+              })
+            }
+            icon={downloadIcon}
+          >
+            {t("imageExportDialog.button.exportToGif")}
           </FilledButton>
           <FilledButton
             className="ImageExportModal__settings__buttons__button"

@@ -312,6 +312,7 @@ describe("<Excalidraw/>", () => {
       //open menu
       toggleMenu(container);
       fireEvent.click(queryByTestId(container, "image-export-button")!);
+      expect(queryByText(document.body, "GIF")).toBeTruthy();
       const textInput: HTMLInputElement | null = document.querySelector(
         ".ImageExportModal .ImageExportModal__preview__filename .TextInput",
       );

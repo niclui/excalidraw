@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Popover } from "radix-ui";
 
 import {
@@ -7,9 +7,11 @@ import {
   KEYS,
   capitalizeString,
   isTransparent,
+  reduceToCommonValue,
 } from "@excalidraw/common";
 
 import {
+  CaptureUpdateAction,
   shouldAllowVerticalAlign,
   suppportsHorizontalAlign,
   hasBoundTextElement,
@@ -39,11 +41,17 @@ import { t } from "../i18n";
 import {
   canChangeRoundness,
   canHaveArrowheads,
+  getSelectedElements,
   getTargetElements,
   hasBackground,
   hasStrokeStyle,
   hasStrokeWidth,
 } from "../scene";
+import {
+  getBuildUpAnimationCustomData,
+  getBuildUpAnimationStep,
+  normalizeBuildUpAnimationStep,
+} from "../buildUpAnimation";
 
 import { getFormValue } from "../actions/actionProperties";
 
@@ -243,6 +251,18 @@ export const SelectedShapeActions = ({
 
       {renderAction("changeOpacity")}
 
+      {!isEditingTextOrNewElement && targetElements.length > 0 && (
+        <fieldset>
+          <legend>{t("labels.animation")}</legend>
+          <BuildUpAnimationStepControl
+            appState={appState}
+            elementsMap={elementsMap}
+            app={app}
+            id="build-up-step-full"
+          />
+        </fieldset>
+      )}
+
       <fieldset>
         <legend>{t("labels.layers")}</legend>
         <div className="buttonList">
@@ -311,6 +331,114 @@ export const SelectedShapeActions = ({
           </div>
         </fieldset>
       )}
+    </div>
+  );
+};
+
+const BuildUpAnimationStepControl = ({
+  appState,
+  elementsMap,
+  app,
+  id,
+}: {
+  appState: UIAppState;
+  elementsMap: NonDeletedElementsMap | NonDeletedSceneElementsMap;
+  app: AppClassProperties;
+  id: string;
+}) => {
+  const selectedElements = getSelectedElements(
+    Array.from(elementsMap.values()),
+    appState,
+    {
+      includeBoundTextElement: true,
+      includeElementsInFrames: true,
+    },
+  );
+
+  const commonStep = reduceToCommonValue(selectedElements, (element) =>
+    getBuildUpAnimationStep(element),
+  );
+
+  const [inputValue, setInputValue] = useState(
+    commonStep === undefined ? "" : String(commonStep),
+  );
+
+  useEffect(() => {
+    setInputValue(commonStep === undefined ? "" : String(commonStep));
+  }, [commonStep, selectedElements.length]);
+
+  if (!selectedElements.length) {
+    return null;
+  }
+
+  const applyStep = () => {
+    const nextValue = inputValue.trim();
+
+    if (!nextValue && commonStep === undefined) {
+      return;
+    }
+
+    const nextStep = normalizeBuildUpAnimationStep(
+      nextValue === "" ? 0 : nextValue,
+      commonStep ?? 0,
+    );
+
+    let didMutate = false;
+
+    selectedElements.forEach((element) => {
+      const customData = getBuildUpAnimationCustomData(element, nextStep);
+
+      if (customData !== element.customData) {
+        app.scene.mutateElement(
+          element,
+          {
+            customData,
+          },
+          {
+            informMutation: false,
+            isDragging: false,
+          },
+        );
+        didMutate = true;
+      }
+    });
+
+    if (didMutate) {
+      app.syncActionResult({
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+    }
+
+    setInputValue(String(nextStep));
+  };
+
+  return (
+    <div className="selected-shape-actions__build-up-step">
+      <label htmlFor={id}>{t("labels.buildUpStep")}</label>
+      <input
+        id={id}
+        className="TextInput selected-shape-actions__build-up-step__input"
+        type="number"
+        step={1}
+        min={0}
+        value={inputValue}
+        onChange={(event) => {
+          setInputValue(event.target.value);
+        }}
+        onBlur={applyStep}
+        onKeyDown={(event) => {
+          if (event.key === KEYS.ENTER) {
+            event.preventDefault();
+            applyStep();
+            event.currentTarget.blur();
+          } else if (event.key === KEYS.ESCAPE) {
+            event.preventDefault();
+            setInputValue(commonStep === undefined ? "" : String(commonStep));
+            event.currentTarget.blur();
+          }
+        }}
+        aria-label={t("labels.buildUpStep")}
+      />
     </div>
   );
 };
@@ -614,6 +742,7 @@ const CombinedExtraActions = ({
   app,
   showDuplicate,
   showDelete,
+  elementsMap,
 }: {
   appState: UIAppState;
   targetElements: ExcalidrawElement[];
@@ -623,6 +752,7 @@ const CombinedExtraActions = ({
   app: AppClassProperties;
   showDuplicate?: boolean;
   showDelete?: boolean;
+  elementsMap: NonDeletedElementsMap | NonDeletedSceneElementsMap;
 }) => {
   const isEditingTextOrNewElement = Boolean(
     appState.editingTextElement || appState.newElement,
@@ -739,6 +869,15 @@ const CombinedExtraActions = ({
                   </div>
                 </fieldset>
               )}
+              <fieldset>
+                <legend>{t("labels.animation")}</legend>
+                <BuildUpAnimationStepControl
+                  appState={appState}
+                  elementsMap={elementsMap}
+                  app={app}
+                  id="build-up-step-compact"
+                />
+              </fieldset>
               <fieldset>
                 <legend>{t("labels.actions")}</legend>
                 <div className="buttonList">
@@ -888,6 +1027,7 @@ export const CompactShapeActions = ({
         setAppState={setAppState}
         container={container}
         app={app}
+        elementsMap={elementsMap}
       />
     </div>
   );
@@ -1010,6 +1150,7 @@ export const MobileShapeActions = ({
           setAppState={setAppState}
           container={container}
           app={app}
+          elementsMap={elementsMap}
           showDuplicate={!showDuplicateOutside}
           showDelete={!showDeleteOutside}
         />
