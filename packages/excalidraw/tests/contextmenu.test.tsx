@@ -8,6 +8,7 @@ import { setDateTimeForTests } from "@excalidraw/common";
 import { copiedStyles } from "../actions/actionStyles";
 import { Excalidraw } from "../index";
 import * as StaticScene from "../renderer/staticScene";
+import { createComponentInstanceElements } from "../data/components";
 
 import { API } from "./helpers/api";
 import { UI, Pointer, Keyboard } from "./helpers/ui";
@@ -26,7 +27,6 @@ import {
   checkpointHistory,
 } from "./test-utils";
 
-import type { ShortcutName } from "../actions/shortcuts";
 import type { ActionName } from "../actions/types";
 
 const checkpoint = (name: string) => {
@@ -89,7 +89,7 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "paste",
       "selectAll",
       "gridMode",
@@ -100,10 +100,10 @@ describe("contextMenu element", () => {
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -130,6 +130,7 @@ describe("contextMenu element", () => {
       "pasteStyles",
       "deleteSelectedElements",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",
@@ -149,6 +150,44 @@ describe("contextMenu element", () => {
         contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
+  });
+
+  it("shows component actions for linked component instance", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    const instanceElements = createComponentInstanceElements({
+      definition: {
+        id: "component-1",
+        name: "CardComponent",
+        scope: "document",
+        ownerId: null,
+        created: Date.now(),
+        updated: Date.now(),
+        elements: [rectangle],
+      },
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const contextMenu = UI.queryContextMenu();
+    expect(contextMenu).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="editComponentMaster"]'),
+    ).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="detachComponentInstance"]'),
+    ).not.toBeNull();
   });
 
   it("shows context menu for element", () => {
@@ -215,7 +254,7 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "cut",
       "copy",
       "paste",
@@ -225,6 +264,7 @@ describe("contextMenu element", () => {
       "deleteSelectedElements",
       "group",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",
@@ -236,10 +276,10 @@ describe("contextMenu element", () => {
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -283,6 +323,7 @@ describe("contextMenu element", () => {
       "copyElementLink",
       "ungroup",
       "addToLibrary",
+      "addToComponents",
       "flipHorizontal",
       "flipVertical",
       "sendBackward",

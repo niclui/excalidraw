@@ -1,11 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-import {
-  LIBRARY_DISABLED_TYPES,
-  MIME_TYPES,
-  randomId,
-} from "@excalidraw/common";
-import { deepCopyElement } from "@excalidraw/element";
+import { MIME_TYPES } from "@excalidraw/common";
 
 import { componentsAtom } from "../data/components";
 import { atom, useAtom } from "../editor-jotai";
@@ -64,24 +59,18 @@ export const ComponentsMenu = React.memo(() => {
   );
 
   const createComponent = async () => {
-    if (!pendingElements.length) {
+    const result = await app.createComponentFromSelection({
+      name,
+      scope,
+    });
+    if (!result.success) {
+      if (result.errorMessage) {
+        setAppState({
+          errorMessage: result.errorMessage,
+        });
+      }
       return;
     }
-    for (const type of LIBRARY_DISABLED_TYPES) {
-      if (pendingElements.some((element) => element.type === type)) {
-        setAppState({
-          errorMessage: t(`errors.libraryElementTypeError.${type}`),
-        });
-        return;
-      }
-    }
-    const componentName = name.trim() || `Component ${randomId().slice(0, 4)}`;
-    await app.components.addComponent({
-      name: componentName,
-      scope,
-      elements: pendingElements.map((element) => deepCopyElement(element)),
-      ownerId: app.getCurrentUserId?.() || null,
-    });
 
     setName("");
   };

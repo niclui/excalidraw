@@ -101,8 +101,11 @@
     "collaborators": "Collaborators",
     "toggleGrid": "Toggle grid",
     "addToLibrary": "Add to library",
+    "addToComponents": "Add to components",
     "createComponent": "Create component",
     "editComponent": "Edit component",
+    "editComponentMaster": "Edit component master",
+    "detachComponent": "Detach component instance",
     "searchComponents": "Search components",
     "componentName": "Component name",
     "documentComponents": "Document components",
@@ -537,6 +540,7 @@
   },
   "toast": {
     "addedToLibrary": "Added to library",
+    "addedToComponents": "Added to components",
     "copyStyles": "Copied styles.",
     "copyToClipboard": "Copied to clipboard.",
     "copyToClipboardAsPng": "Copied {{exportSelection}} to clipboard as PNG\n({{exportColorScheme}})",
@@ -548,7 +552,8 @@
     "pasteAsSingleElement": "Use {{shortcut}} to paste as a single element,\nor paste into an existing text editor",
     "unableToEmbed": "Embedding this url is currently not allowed. Raise an issue on GitHub to request the url whitelisted",
     "unrecognizedLinkFormat": "The link you embedded does not match the expected format. Please try to paste the 'embed' string provided by the source site",
-    "elementLinkCopied": "Link copied to clipboard"
+    "elementLinkCopied": "Link copied to clipboard",
+    "detachedComponent": "Component instance detached"
   },
   "colors": {
     "transparent": "Transparent",

@@ -795,6 +795,9 @@ export type AppClassProperties = {
   cancelComponentEditMode: App["cancelComponentEditMode"];
   removeComponentDefinition: App["removeComponentDefinition"];
   getCurrentUserId: App["getCurrentUserId"];
+  createComponentFromSelection: App["createComponentFromSelection"];
+  editComponentFromSelectedInstance: App["editComponentFromSelectedInstance"];
+  detachSelectedComponentInstances: App["detachSelectedComponentInstances"];
 
   onPointerUpEmitter: App["onPointerUpEmitter"];
   updateEditorAtom: App["updateEditorAtom"];

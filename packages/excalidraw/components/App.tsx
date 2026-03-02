@@ -109,6 +109,7 @@ import {
   setDesktopUIMode,
   isSelectionLikeTool,
   oneOf,
+  LIBRARY_DISABLED_TYPES,
 } from "@excalidraw/common";
 
 import {
@@ -291,6 +292,7 @@ import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
 import {
   actionAddToLibrary,
+  actionAddToComponents,
   actionBringForward,
   actionBringToFront,
   actionCopy,
@@ -320,6 +322,8 @@ import {
   actionToggleLinearEditor,
   actionToggleObjectsSnapMode,
   actionToggleCropEditor,
+  actionDetachComponentInstance,
+  actionEditComponentMaster,
 } from "../actions";
 import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionToggleHandTool, zoomToFit } from "../actions/actionCanvas";
@@ -2826,6 +2830,104 @@ class App extends React.Component<AppProps, AppState> {
       .find((entry) => entry.startsWith("excplus-auth="))
       ?.split("=")[1];
     return token || null;
+  };
+
+  public createComponentFromSelection = async ({
+    name,
+    scope = "document",
+  }: {
+    name?: string;
+    scope?: ComponentDefinitions[number]["scope"];
+  } = {}) => {
+    const selectedElements = this.scene.getSelectedElements({
+      selectedElementIds: this.state.selectedElementIds,
+      includeBoundTextElement: true,
+      includeElementsInFrames: true,
+    });
+
+    if (!selectedElements.length) {
+      return {
+        success: false,
+      };
+    }
+
+    for (const type of LIBRARY_DISABLED_TYPES) {
+      if (selectedElements.some((element) => element.type === type)) {
+        return {
+          success: false,
+          errorMessage: t(`errors.libraryElementTypeError.${type}`),
+        };
+      }
+    }
+
+    await this.components.addComponent({
+      name: name?.trim() || `Component ${Date.now().toString().slice(-4)}`,
+      scope,
+      elements: selectedElements.map((element) => deepCopyElement(element)),
+      ownerId: this.getCurrentUserId(),
+    });
+
+    return {
+      success: true,
+    };
+  };
+
+  public editComponentFromSelectedInstance = async () => {
+    const selectedElements = this.scene.getSelectedElements({
+      selectedElementIds: this.state.selectedElementIds,
+    });
+    const metadata = selectedElements
+      .map((element) => getLinkedComponentMetadata(element))
+      .find((data) => !!data?.linked);
+
+    if (!metadata) {
+      return false;
+    }
+
+    await this.enterComponentEditMode(metadata.definitionId);
+    return true;
+  };
+
+  public detachSelectedComponentInstances = () => {
+    const selectedElements = this.scene.getSelectedElements({
+      selectedElementIds: this.state.selectedElementIds,
+    });
+    const grouped = new Map<string, Set<string>>();
+
+    for (const element of selectedElements) {
+      const metadata = getLinkedComponentMetadata(element);
+      if (!metadata?.linked) {
+        continue;
+      }
+      const instanceIds = grouped.get(metadata.definitionId) || new Set();
+      instanceIds.add(metadata.instanceId);
+      grouped.set(metadata.definitionId, instanceIds);
+    }
+
+    if (!grouped.size) {
+      return 0;
+    }
+
+    let nextElements = this.scene.getElementsIncludingDeleted();
+    for (const [definitionId, instanceIds] of grouped) {
+      nextElements = this.detachLinkedComponentInstances(
+        definitionId,
+        Array.from(instanceIds),
+        "detached-by-user",
+        nextElements,
+      );
+    }
+
+    this.suppressLinkedComponentDetach = true;
+    this.updateScene({
+      elements: nextElements,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    setTimeout(() => {
+      this.suppressLinkedComponentDetach = false;
+    });
+
+    return grouped.size;
   };
 
   private detachLinkedComponentInstances = <TElement extends ExcalidrawElement>(
@@ -12479,6 +12581,9 @@ class App extends React.Component<AppProps, AppState> {
       actionUngroup,
       CONTEXT_MENU_SEPARATOR,
       actionAddToLibrary,
+      actionAddToComponents,
+      actionEditComponentMaster,
+      actionDetachComponentInstance,
       ...zIndexActions,
       CONTEXT_MENU_SEPARATOR,
       actionFlipHorizontal,
