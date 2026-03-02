@@ -9,6 +9,7 @@ const { h } = window;
 
 describe("components", () => {
   beforeEach(async () => {
+    delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
     await render(<Excalidraw />);
     await h.app.components.resetComponents();
   });
@@ -185,6 +186,31 @@ describe("components", () => {
     await waitFor(() => {
       expect(h.elements[0].customData?.component?.linked).toBe(false);
       expect(h.elements[0].backgroundColor).toBe("transparent");
+    });
+  });
+
+  it("prevents editing component masters for non-owners", async () => {
+    (window as any).EXCALIDRAW_COMPONENTS_USER_ID = "viewer-user-id";
+    const rectangle = API.createElement({
+      type: "rectangle",
+      width: 60,
+      height: 40,
+    });
+    await h.app.components.addComponent({
+      name: "SharedComponent",
+      scope: "document",
+      ownerId: "owner-user-id",
+      elements: [rectangle],
+    });
+
+    const [component] = await h.app.components.getLatestComponents();
+    await h.app.enterComponentEditMode(component.id);
+
+    await waitFor(() => {
+      expect(h.state.editingComponentId).toBeNull();
+      expect(h.state.errorMessage).toBe(
+        "Only the component creator can edit this shared component.",
+      );
     });
   });
 });

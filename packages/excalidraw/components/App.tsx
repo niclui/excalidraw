@@ -3054,11 +3054,8 @@ class App extends React.Component<AppProps, AppState> {
     if (!component) {
       return;
     }
-    if (
-      component.ownerId &&
-      this.getCurrentUserId() &&
-      component.ownerId !== this.getCurrentUserId()
-    ) {
+    const currentUserId = this.getCurrentUserId();
+    if (component.ownerId && component.ownerId !== currentUserId) {
       this.setState({
         errorMessage: t("errors.componentOwnershipError"),
       });
