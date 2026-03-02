@@ -987,7 +987,7 @@ const ExcalidrawWrapper = () => {
           }}
         />
 
-        <AppSidebar />
+        <AppSidebar excalidrawAPI={excalidrawAPI || null} />
 
         {errorMessage && (
           <ErrorDialog onClose={() => setErrorMessage("")}>
