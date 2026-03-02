@@ -7,7 +7,7 @@ Excalidraw is a Yarn workspaces monorepo with a client-side SPA (no local backen
 ### Services
 
 | Service | Command | Port | Notes |
-|---------|---------|------|-------|
+| --- | --- | --- | --- |
 | Vite dev server | `yarn start` (or `cd excalidraw-app && VITE_APP_ENABLE_ESLINT=false vite --host 0.0.0.0 --no-open`) | 3001 | The `yarn start` script runs `yarn && vite` from excalidraw-app, which re-runs install then starts Vite. Use `--no-open` to skip browser auto-open in headless environments. |
 
 ### Key commands

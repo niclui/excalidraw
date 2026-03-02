@@ -58,7 +58,7 @@ export type ShortcutName =
   | "searchMenu"
   | "toolLock";
 
-const shortcutMap: Record<ShortcutName, string[]> = {
+export const shortcutMap: Record<ShortcutName, string[]> = {
   toggleTheme: [getShortcutKey("Shift+Alt+D")],
   saveScene: [getShortcutKey("CtrlOrCmd+S")],
   loadScene: [getShortcutKey("CtrlOrCmd+O")],

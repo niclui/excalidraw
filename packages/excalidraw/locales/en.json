@@ -443,7 +443,13 @@
     "movePageUpDown": "Move page up/down",
     "movePageLeftRight": "Move page left/right",
     "cropStart": "Crop image",
-    "cropFinish": "Finish image cropping"
+    "cropFinish": "Finish image cropping",
+    "canvasNavigation": "Canvas Navigation",
+    "elementActions": "Element Actions",
+    "fileOperations": "File Operations",
+    "saveFile": "Save file",
+    "openFile": "Open file",
+    "exportImage": "Export image"
   },
   "clearCanvasDialog": {
     "title": "Clear canvas"
