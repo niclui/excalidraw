@@ -97,6 +97,7 @@ export class Renderer {
 
     return memoize(
       ({
+        elements,
         zoom,
         offsetLeft,
         offsetTop,
@@ -109,6 +110,7 @@ export class Renderer {
         // cache-invalidation nonce
         sceneNonce: _sceneNonce,
       }: {
+        elements?: readonly NonDeletedExcalidrawElement[];
         zoom: AppState["zoom"];
         offsetLeft: AppState["offsetLeft"];
         offsetTop: AppState["offsetTop"];
@@ -122,7 +124,7 @@ export class Renderer {
         newElementId: ExcalidrawElement["id"] | undefined;
         sceneNonce: ReturnType<InstanceType<typeof Scene>["getSceneNonce"]>;
       }) => {
-        const elements = this.scene.getNonDeletedElements();
+        elements = elements || this.scene.getNonDeletedElements();
 
         const elementsMap = getRenderableElements({
           elements,

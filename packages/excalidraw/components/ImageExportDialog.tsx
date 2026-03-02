@@ -19,6 +19,7 @@ import {
   actionChangeProjectName,
 } from "../actions/actionExport";
 import { probablySupportsClipboardBlob } from "../clipboard";
+import { getAnimationFlowElements } from "../animation/flow";
 import { prepareElementsForExport } from "../data";
 import { canvasToBlob } from "../data/blob";
 import { nativeFileSystemSupported } from "../data/filesystem";
@@ -73,6 +74,7 @@ const ImageExportModal = ({
     elementsSnapshot,
     appStateSnapshot,
   );
+  const hasAnimationFlow = getAnimationFlowElements(elementsSnapshot).length > 0;
 
   const [projectName, setProjectName] = useState(name);
   const [exportSelectionOnly, setExportSelectionOnly] = useState(hasSelection);
@@ -304,6 +306,19 @@ const ImageExportModal = ({
             icon={downloadIcon}
           >
             {t("imageExportDialog.button.exportToSvg")}
+          </FilledButton>
+          <FilledButton
+            className="ImageExportModal__settings__buttons__button"
+            label={t("imageExportDialog.title.exportToGif")}
+            disabled={!hasAnimationFlow}
+            onClick={() =>
+              onExportImage(EXPORT_IMAGE_TYPES.gif, exportedElements, {
+                exportingFrame,
+              })
+            }
+            icon={downloadIcon}
+          >
+            {t("imageExportDialog.button.exportToGif")}
           </FilledButton>
           {(probablySupportsClipboardBlob || isFirefox) && (
             <FilledButton

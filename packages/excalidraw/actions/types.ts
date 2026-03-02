@@ -142,7 +142,13 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleLassoTool"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "openAnimationFlow"
+  | "addSelectionToAnimationFlow"
+  | "removeAnimationFlowStep"
+  | "moveAnimationFlowStep"
+  | "updateAnimationFlowStep"
+  | "clearAnimationFlow";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

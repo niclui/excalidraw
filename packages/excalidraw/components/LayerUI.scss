@@ -161,6 +161,39 @@
     }
   }
 
+  .AnimationPresentationControls {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--zIndex-layerUI);
+    pointer-events: var(--ui-pointerEvents);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--default-border-color);
+    border-radius: var(--border-radius-lg);
+    background: var(--island-bg-color);
+    box-shadow: var(--shadow-island);
+
+    button {
+      border: 1px solid var(--default-border-color);
+      border-radius: var(--border-radius-md);
+      padding: 0.3rem 0.6rem;
+      background: var(--button-gray-1);
+      color: var(--text-primary-color);
+      cursor: pointer;
+    }
+
+    span {
+      font-size: 0.8rem;
+      color: var(--text-secondary-color);
+      min-width: 3rem;
+      text-align: center;
+    }
+  }
+
   .theme--dark {
     .plus-banner {
       &:hover {

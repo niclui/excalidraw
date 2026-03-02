@@ -338,6 +338,7 @@ import { ActionManager } from "../actions/manager";
 import { actions } from "../actions/register";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
+import { getAnimationFlowElements } from "../animation/flow";
 import { AnimationFrameHandler } from "../animation-frame-handler";
 import {
   getDefaultAppState,
@@ -487,6 +488,7 @@ import type {
   UnsubscribeCallback,
   EmbedsValidationStatus,
   ElementsPendingErasure,
+  AnimationPresentationStatus,
   GenerateDiagramToCode,
   NullableGridSize,
   Offsets,
@@ -654,6 +656,16 @@ class App extends React.Component<AppProps, AppState> {
   /** previous frame pointer coords */
   previousPointerMoveCoords: { x: number; y: number } | null = null;
   lastViewportPosition = { x: 0, y: 0 };
+
+  private animationPresentation = {
+    isPresenting: false,
+    isPlaying: false,
+    currentStep: 0,
+    transitionProgress: 1,
+    stepStartTime: 0,
+    previousViewModeEnabled: false,
+  };
+  private animationPresentationFrameId: number | null = null;
 
   animationFrameHandler = new AnimationFrameHandler();
 
@@ -1980,8 +1992,12 @@ class App extends React.Component<AppProps, AppState> {
     const { renderTopRightUI, renderTopLeftUI, renderCustomStats } = this.props;
 
     const sceneNonce = this.scene.getSceneNonce();
+    const renderableElements = this.getAnimationPresentationRenderableElements(
+      this.scene.getNonDeletedElements(),
+    );
     const { elementsMap, visibleElements } =
       this.renderer.getRenderableElements({
+        elements: renderableElements,
         sceneNonce,
         zoom: this.state.zoom,
         offsetLeft: this.state.offsetLeft,
@@ -2374,6 +2390,249 @@ class App extends React.Component<AppProps, AppState> {
     ) {
       this.setState({ fileHandle });
     }
+  };
+
+  private getAnimationFlowEntries = () => {
+    return getAnimationFlowElements(this.scene.getNonDeletedElements());
+  };
+
+  public getAnimationPresentationStatus =
+    (): AnimationPresentationStatus => ({
+      isPresenting: this.animationPresentation.isPresenting,
+      isPlaying: this.animationPresentation.isPlaying,
+      currentStep: this.animationPresentation.currentStep,
+      totalSteps: this.getAnimationFlowEntries().length,
+    });
+
+  private stopAnimationPresentationLoop = () => {
+    if (this.animationPresentationFrameId != null) {
+      cancelAnimationFrame(this.animationPresentationFrameId);
+      this.animationPresentationFrameId = null;
+    }
+  };
+
+  private startAnimationPresentationLoop = () => {
+    this.stopAnimationPresentationLoop();
+
+    const tick = (timestamp: number) => {
+      if (
+        !this.animationPresentation.isPresenting ||
+        !this.animationPresentation.isPlaying
+      ) {
+        this.animationPresentationFrameId = null;
+        return;
+      }
+
+      const entries = this.getAnimationFlowEntries();
+
+      if (!entries.length) {
+        this.stopAnimationPresentation();
+        return;
+      }
+
+      const currentStep = Math.min(
+        this.animationPresentation.currentStep,
+        entries.length - 1,
+      );
+      const currentEntry = entries[currentStep];
+
+      const transitionDuration = Math.max(1, currentEntry.step.durationMs);
+      const elapsed = timestamp - this.animationPresentation.stepStartTime;
+      const transitionProgress =
+        currentEntry.step.transition === "fade"
+          ? clamp(elapsed / transitionDuration, 0, 1)
+          : 1;
+
+      if (transitionProgress !== this.animationPresentation.transitionProgress) {
+        this.animationPresentation.transitionProgress = transitionProgress;
+        this.triggerRender();
+      }
+
+      const stepTotalDuration =
+        Math.max(1, currentEntry.step.durationMs) +
+        Math.max(1, currentEntry.step.holdMs);
+
+      if (elapsed >= stepTotalDuration) {
+        if (currentStep >= entries.length - 1) {
+          this.animationPresentation.isPlaying = false;
+          this.animationPresentation.transitionProgress = 1;
+          this.triggerRender();
+          this.animationPresentationFrameId = null;
+          return;
+        }
+
+        this.animationPresentation.currentStep = currentStep + 1;
+        this.animationPresentation.stepStartTime = timestamp;
+        this.animationPresentation.transitionProgress =
+          entries[currentStep + 1].step.transition === "fade" ? 0 : 1;
+        this.triggerRender();
+      }
+
+      this.animationPresentationFrameId = requestAnimationFrame(tick);
+    };
+
+    this.animationPresentationFrameId = requestAnimationFrame(tick);
+  };
+
+  public startAnimationPresentation = () => {
+    const entries = this.getAnimationFlowEntries();
+    if (!entries.length) {
+      this.setToast({ message: t("toast.animationFlowEmpty") });
+      return;
+    }
+
+    this.animationPresentation.isPresenting = true;
+    this.animationPresentation.isPlaying = false;
+    this.animationPresentation.currentStep = 0;
+    this.animationPresentation.stepStartTime = performance.now();
+    this.animationPresentation.transitionProgress = 1;
+    this.animationPresentation.previousViewModeEnabled = this.state.viewModeEnabled;
+
+    this.setState(
+      {
+        openDialog: null,
+        openMenu: null,
+        openPopup: null,
+        viewModeEnabled: true,
+        selectedElementIds: {},
+        selectedGroupIds: {},
+      },
+      () => {
+        this.startAnimationPresentationLoop();
+        this.triggerRender(true);
+      },
+    );
+  };
+
+  public stopAnimationPresentation = () => {
+    const shouldRestoreViewMode =
+      typeof this.props.viewModeEnabled === "undefined"
+        ? this.animationPresentation.previousViewModeEnabled
+        : this.props.viewModeEnabled;
+
+    this.stopAnimationPresentationLoop();
+
+    this.animationPresentation.isPresenting = false;
+    this.animationPresentation.isPlaying = false;
+    this.animationPresentation.currentStep = 0;
+    this.animationPresentation.stepStartTime = 0;
+    this.animationPresentation.transitionProgress = 1;
+
+    this.setState(
+      {
+        viewModeEnabled: !!shouldRestoreViewMode,
+      },
+      () => this.triggerRender(true),
+    );
+  };
+
+  public toggleAnimationPresentationPlayback = () => {
+    if (!this.animationPresentation.isPresenting) {
+      return;
+    }
+
+    const entries = this.getAnimationFlowEntries();
+    if (!entries.length) {
+      return;
+    }
+
+    this.animationPresentation.isPlaying = !this.animationPresentation.isPlaying;
+
+    if (this.animationPresentation.isPlaying) {
+      const currentEntry =
+        entries[
+          Math.min(this.animationPresentation.currentStep, entries.length - 1)
+        ];
+      this.animationPresentation.stepStartTime = performance.now();
+      this.animationPresentation.transitionProgress =
+        currentEntry.step.transition === "fade" ? 0 : 1;
+      this.startAnimationPresentationLoop();
+    } else {
+      this.stopAnimationPresentationLoop();
+      this.animationPresentation.transitionProgress = 1;
+    }
+
+    this.triggerRender(true);
+  };
+
+  public nextAnimationPresentationStep = () => {
+    if (!this.animationPresentation.isPresenting) {
+      return;
+    }
+
+    const entries = this.getAnimationFlowEntries();
+    if (!entries.length) {
+      return;
+    }
+
+    this.animationPresentation.currentStep = Math.min(
+      entries.length - 1,
+      this.animationPresentation.currentStep + 1,
+    );
+    this.animationPresentation.isPlaying = false;
+    this.animationPresentation.transitionProgress = 1;
+    this.stopAnimationPresentationLoop();
+    this.triggerRender(true);
+  };
+
+  public previousAnimationPresentationStep = () => {
+    if (!this.animationPresentation.isPresenting) {
+      return;
+    }
+
+    const entries = this.getAnimationFlowEntries();
+    if (!entries.length) {
+      return;
+    }
+
+    this.animationPresentation.currentStep = Math.max(
+      0,
+      this.animationPresentation.currentStep - 1,
+    );
+    this.animationPresentation.isPlaying = false;
+    this.animationPresentation.transitionProgress = 1;
+    this.stopAnimationPresentationLoop();
+    this.triggerRender(true);
+  };
+
+  private getAnimationPresentationRenderableElements = (
+    elements: readonly NonDeletedExcalidrawElement[],
+  ): readonly NonDeletedExcalidrawElement[] => {
+    if (!this.animationPresentation.isPresenting) {
+      return elements;
+    }
+
+    const entries = getAnimationFlowElements(elements);
+    if (!entries.length) {
+      return [];
+    }
+
+    const currentStep = clamp(
+      this.animationPresentation.currentStep,
+      0,
+      entries.length - 1,
+    );
+
+    return entries
+      .slice(0, currentStep + 1)
+      .map(({ element, step }, index) => {
+        if (
+          index !== currentStep ||
+          step.transition !== "fade" ||
+          this.animationPresentation.transitionProgress >= 1
+        ) {
+          return element;
+        }
+
+        return newElementWith(element, {
+          opacity: Math.max(
+            1,
+            Math.round(
+              element.opacity * this.animationPresentation.transitionProgress,
+            ),
+          ),
+        }) as NonDeletedExcalidrawElement;
+      });
   };
 
   private magicGenerations = new Map<
@@ -3053,6 +3312,7 @@ class App extends React.Component<AppProps, AppState> {
 
   public componentWillUnmount() {
     (window as any).launchQueue?.setConsumer(() => {});
+    this.stopAnimationPresentationLoop();
     this.renderer.destroy();
     this.scene.destroy();
     this.scene = new Scene();
@@ -3321,6 +3581,27 @@ class App extends React.Component<AppProps, AppState> {
     if (prevState.viewModeEnabled !== this.state.viewModeEnabled) {
       this.addEventListeners();
       this.deselectElements();
+    }
+
+    if (
+      this.animationPresentation.isPresenting &&
+      prevState.viewModeEnabled &&
+      !this.state.viewModeEnabled
+    ) {
+      this.stopAnimationPresentation();
+      return;
+    }
+
+    if (this.animationPresentation.isPresenting) {
+      const flowEntries = this.getAnimationFlowEntries();
+      if (!flowEntries.length) {
+        this.stopAnimationPresentation();
+        return;
+      }
+      this.animationPresentation.currentStep = Math.min(
+        this.animationPresentation.currentStep,
+        flowEntries.length - 1,
+      );
     }
 
     // cleanup
@@ -4568,6 +4849,42 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   // Input handling
+  private handleAnimationPresentationKeyDown = (
+    event: React.KeyboardEvent | KeyboardEvent,
+  ) => {
+    if (!this.animationPresentation.isPresenting) {
+      return false;
+    }
+
+    const key = event.key;
+
+    if (key === KEYS.ESCAPE) {
+      this.stopAnimationPresentation();
+      event.preventDefault();
+      return true;
+    }
+
+    if (key === KEYS.ARROW_RIGHT || key === KEYS.PAGE_DOWN) {
+      this.nextAnimationPresentationStep();
+      event.preventDefault();
+      return true;
+    }
+
+    if (key === KEYS.ARROW_LEFT || key === KEYS.PAGE_UP) {
+      this.previousAnimationPresentationStep();
+      event.preventDefault();
+      return true;
+    }
+
+    if (key === KEYS.SPACE || key === KEYS.ENTER) {
+      this.toggleAnimationPresentationPlayback();
+      event.preventDefault();
+      return true;
+    }
+
+    return false;
+  };
+
   private onKeyDown = withBatchedUpdates(
     (event: React.KeyboardEvent | KeyboardEvent) => {
       // normalize `event.key` when CapsLock is pressed #2372
@@ -4593,6 +4910,10 @@ class App extends React.Component<AppProps, AppState> {
               : value;
           },
         });
+      }
+
+      if (this.handleAnimationPresentationKeyDown(event)) {
+        return;
       }
 
       if (!isInputLike(event.target)) {

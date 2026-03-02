@@ -21,6 +21,10 @@ import type {
 } from "@excalidraw/element/types";
 
 import {
+  getAnimationFlowElements,
+  type AnimationFlowStep,
+} from "../animation/flow";
+import {
   copyBlobToClipboardAsPng,
   copyTextToSystemClipboard,
 } from "../clipboard";
@@ -43,6 +47,172 @@ export { loadFromJSON, saveAsJSON } from "./json";
 
 export type ExportedElements = readonly NonDeletedExcalidrawElement[] & {
   _brand: "exportedElements";
+};
+
+const getAnimationGifFrameCount = (
+  step: Pick<AnimationFlowStep, "durationMs">,
+  fps: number,
+) => {
+  return Math.max(1, Math.round((step.durationMs / 1000) * fps));
+};
+
+const makeAnimationFlowFrameElements = (
+  entries: ReturnType<typeof getAnimationFlowElements>,
+  currentStepIndex: number,
+  currentStepOpacityProgress: number,
+) => {
+  return entries.map(({ element, step }, index) => {
+    if (index < currentStepIndex) {
+      return element;
+    }
+
+    if (index > currentStepIndex) {
+      return {
+        ...element,
+        opacity: 0,
+      };
+    }
+
+    if (step.transition === "fade") {
+      return {
+        ...element,
+        opacity: Math.max(
+          0,
+          Math.round(element.opacity * currentStepOpacityProgress),
+        ),
+      };
+    }
+
+    return element;
+  }) as NonDeletedExcalidrawElement[];
+};
+
+const exportAnimationFlowToGif = async ({
+  elements,
+  appState,
+  files,
+  exportBackground,
+  exportPadding,
+  viewBackgroundColor,
+  name,
+  fileHandle,
+  exportingFrame,
+}: {
+  elements: ExportedElements;
+  appState: AppState;
+  files: BinaryFiles;
+  exportBackground: boolean;
+  exportPadding: number;
+  viewBackgroundColor: string;
+  name: string;
+  fileHandle?: FileSystemHandle | null;
+  exportingFrame: ExcalidrawFrameLikeElement | null;
+}) => {
+  const flowEntries = getAnimationFlowElements(elements);
+  if (!flowEntries.length) {
+    throw new Error(t("alerts.animationFlowRequiredForGif"));
+  }
+
+  const fps = 12;
+  const frames: { canvas: HTMLCanvasElement; delayMs: number }[] = [];
+
+  for (let stepIndex = 0; stepIndex < flowEntries.length; stepIndex++) {
+    const currentStep = flowEntries[stepIndex].step;
+
+    if (currentStep.transition === "fade") {
+      const transitionFrameCount = getAnimationGifFrameCount(currentStep, fps);
+      const frameDelay = Math.max(
+        10,
+        Math.round(currentStep.durationMs / transitionFrameCount),
+      );
+
+      for (
+        let transitionIndex = 1;
+        transitionIndex <= transitionFrameCount;
+        transitionIndex++
+      ) {
+        const opacityProgress = transitionIndex / transitionFrameCount;
+        const frameElements = makeAnimationFlowFrameElements(
+          flowEntries,
+          stepIndex,
+          opacityProgress,
+        );
+
+        const canvas = await exportToCanvas(frameElements, appState, files, {
+          exportBackground,
+          viewBackgroundColor,
+          exportPadding,
+          exportingFrame,
+        });
+        frames.push({ canvas, delayMs: frameDelay });
+      }
+    } else {
+      const frameElements = makeAnimationFlowFrameElements(
+        flowEntries,
+        stepIndex,
+        1,
+      );
+      const canvas = await exportToCanvas(frameElements, appState, files, {
+        exportBackground,
+        viewBackgroundColor,
+        exportPadding,
+        exportingFrame,
+      });
+      frames.push({
+        canvas,
+        delayMs: Math.max(10, currentStep.durationMs),
+      });
+    }
+
+    const holdFrameElements = makeAnimationFlowFrameElements(
+      flowEntries,
+      stepIndex,
+      1,
+    );
+
+    const holdCanvas = await exportToCanvas(holdFrameElements, appState, files, {
+      exportBackground,
+      viewBackgroundColor,
+      exportPadding,
+      exportingFrame,
+    });
+    frames.push({
+      canvas: holdCanvas,
+      delayMs: Math.max(10, currentStep.holdMs),
+    });
+  }
+
+  const { GIFEncoder, quantize, applyPalette } = await import("gifenc");
+  const gif = GIFEncoder();
+
+  for (const frame of frames) {
+    const width = frame.canvas.width;
+    const height = frame.canvas.height;
+    const ctx = frame.canvas.getContext("2d");
+    if (!ctx) {
+      continue;
+    }
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const palette = quantize(imageData.data, 256);
+    const index = applyPalette(imageData.data, palette);
+
+    gif.writeFrame(index, width, height, {
+      palette,
+      delay: Math.max(1, Math.round(frame.delayMs / 10)),
+    });
+  }
+
+  gif.finish();
+  const gifBytes = new Uint8Array(gif.bytesView());
+
+  return fileSave(new Blob([gifBytes], { type: IMAGE_MIME_TYPES.gif }), {
+    description: "Export to GIF",
+    name,
+    extension: "gif",
+    mimeTypes: [IMAGE_MIME_TYPES.gif],
+    fileHandle,
+  });
 };
 
 export const prepareElementsForExport = (
@@ -160,14 +330,25 @@ export const exportCanvas = async (
     }
   }
 
-  const tempCanvas = exportToCanvas(elements, appState, files, {
-    exportBackground,
-    viewBackgroundColor,
-    exportPadding,
-    exportingFrame,
-  });
-
-  if (type === "png") {
+  if (type === "gif") {
+    return exportAnimationFlowToGif({
+      elements,
+      appState,
+      files,
+      exportBackground,
+      exportPadding,
+      viewBackgroundColor,
+      name,
+      fileHandle,
+      exportingFrame,
+    });
+  } else if (type === "png") {
+    const tempCanvas = exportToCanvas(elements, appState, files, {
+      exportBackground,
+      viewBackgroundColor,
+      exportPadding,
+      exportingFrame,
+    });
     let blob = canvasToBlob(tempCanvas);
 
     if (appState.exportEmbedScene) {
@@ -190,6 +371,12 @@ export const exportCanvas = async (
     });
   } else if (type === "clipboard") {
     try {
+      const tempCanvas = exportToCanvas(elements, appState, files, {
+        exportBackground,
+        viewBackgroundColor,
+        exportPadding,
+        exportingFrame,
+      });
       const blob = canvasToBlob(tempCanvas);
       await copyBlobToClipboardAsPng(blob);
     } catch (error: any) {
