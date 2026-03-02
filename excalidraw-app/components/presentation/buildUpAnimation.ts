@@ -25,6 +25,10 @@ export type BuildUpStepStats = {
   transition: BuildUpTransition;
 };
 
+type BuildUpStepElement = Pick<ExcalidrawElement, "id" | "type" | "customData"> & {
+  containerId?: string | null;
+};
+
 const isBuildUpTransition = (value: unknown): value is BuildUpTransition => {
   return (
     typeof value === "string" &&
@@ -60,10 +64,7 @@ export const getBuildUpTransition = (
 };
 
 const getBuildUpStepInternal = (
-  element: Pick<
-    ExcalidrawElement,
-    "id" | "type" | "customData" | "containerId"
-  >,
+  element: BuildUpStepElement,
   elementsMap?: ReadonlyMap<string, ExcalidrawElement>,
   visited?: Set<string>,
 ): number => {
@@ -72,7 +73,12 @@ const getBuildUpStepInternal = (
     return ownStep;
   }
 
-  if (!elementsMap || element.type !== "text" || !element.containerId) {
+  if (
+    !elementsMap ||
+    element.type !== "text" ||
+    !("containerId" in element) ||
+    !element.containerId
+  ) {
     return DEFAULT_BUILD_UP_STEP;
   }
 
@@ -87,14 +93,15 @@ const getBuildUpStepInternal = (
 
   const nextVisited = visited || new Set<string>();
   nextVisited.add(element.id);
-  return getBuildUpStepInternal(container, elementsMap, nextVisited);
+  return getBuildUpStepInternal(
+    container as BuildUpStepElement,
+    elementsMap,
+    nextVisited,
+  );
 };
 
 export const getBuildUpStep = (
-  element: Pick<
-    ExcalidrawElement,
-    "id" | "type" | "customData" | "containerId"
-  >,
+  element: BuildUpStepElement,
   elementsMap?: ReadonlyMap<string, ExcalidrawElement>,
 ): number => {
   return getBuildUpStepInternal(element, elementsMap);
@@ -179,7 +186,10 @@ const withBuildUpAnimationData = <TElement extends ExcalidrawElement>(
     return element;
   }
 
-  const nextCustomData = { ...(element.customData || {}) } as Record<string, unknown>;
+  const nextCustomData = { ...(element.customData || {}) } as Record<
+    string,
+    any
+  >;
   const shouldStripBuildUpData =
     nextStep === DEFAULT_BUILD_UP_STEP && nextTransition === null;
 
@@ -196,10 +206,15 @@ const withBuildUpAnimationData = <TElement extends ExcalidrawElement>(
     nextCustomData[BUILD_UP_ANIMATION_KEY] = nextBuildUpData;
   }
 
-  return newElementWith(element, {
-    customData:
-      Object.keys(nextCustomData).length > 0 ? nextCustomData : undefined,
-  });
+  return newElementWith(
+    element,
+    {
+      customData:
+        Object.keys(nextCustomData).length > 0
+          ? (nextCustomData as ExcalidrawElement["customData"])
+          : undefined,
+    } as any,
+  );
 };
 
 export const assignBuildUpStepToSelected = (
