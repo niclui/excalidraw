@@ -9,6 +9,7 @@ import {
   actionLoadScene,
   actionSaveToActiveFile,
   actionShortcuts,
+  actionOpenAnimationFlow,
   actionToggleGridMode,
   actionToggleObjectsSnapMode,
   actionToggleSearchMenu,
@@ -48,6 +49,7 @@ import {
   MoonIcon,
   save,
   searchIcon,
+  presentationIcon,
   SunIcon,
   TrashIcon,
   usersIcon,
@@ -134,6 +136,29 @@ export const SaveAsImage = () => {
   );
 };
 SaveAsImage.displayName = "SaveAsImage";
+
+export const AnimationFlow = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+
+  if (appState.viewModeEnabled) {
+    return null;
+  }
+
+  return (
+    <DropdownMenuItem
+      icon={presentationIcon}
+      data-testid="animation-flow-button"
+      onSelect={() => actionManager.executeAction(actionOpenAnimationFlow)}
+      shortcut={getShortcutFromShortcutName("openAnimationFlow")}
+      aria-label={t("labels.animationFlow")}
+    >
+      {t("labels.animationFlow")}
+    </DropdownMenuItem>
+  );
+};
+AnimationFlow.displayName = "AnimationFlow";
 
 export const CommandPalette = (opts?: { className?: string }) => {
   const setAppState = useExcalidrawSetAppState();

@@ -56,6 +56,7 @@ import { EyeDropper, activeEyeDropperAtom } from "./EyeDropper";
 import { FixedSideContainer } from "./FixedSideContainer";
 import { HelpDialog } from "./HelpDialog";
 import { HintViewer } from "./HintViewer";
+import { AnimationFlowDialog } from "./AnimationFlowDialog";
 import { ImageExportDialog } from "./ImageExportDialog";
 import { Island } from "./Island";
 import { JSONExportDialog } from "./JSONExportDialog";
@@ -113,6 +114,7 @@ const DefaultMainMenu: React.FC<{
       {UIOptions.canvasActions.saveAsImage && (
         <MainMenu.DefaultItems.SaveAsImage />
       )}
+      <MainMenu.DefaultItems.AnimationFlow />
       <MainMenu.DefaultItems.SearchMenu />
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
@@ -450,6 +452,7 @@ const LayerUI = ({
   };
 
   const isSidebarDocked = useAtomValue(isSidebarDockedAtom);
+  const animationPresentationStatus = app.getAnimationPresentationStatus?.();
 
   const layerUIJSX = (
     <>
@@ -487,6 +490,34 @@ const LayerUI = ({
         <ErrorDialog onClose={() => setAppState({ errorMessage: null })}>
           {appState.errorMessage}
         </ErrorDialog>
+      )}
+      {animationPresentationStatus?.isPresenting && (
+        <div className="AnimationPresentationControls">
+          <button
+            type="button"
+            onClick={() => app.previousAnimationPresentationStep?.()}
+          >
+            {t("labels.animationFlowPrevious")}
+          </button>
+          <button
+            type="button"
+            onClick={() => app.toggleAnimationPresentationPlayback?.()}
+          >
+            {animationPresentationStatus.isPlaying
+              ? t("labels.animationFlowPause")
+              : t("labels.animationFlowPlay")}
+          </button>
+          <button type="button" onClick={() => app.nextAnimationPresentationStep?.()}>
+            {t("labels.animationFlowNext")}
+          </button>
+          <span>
+            {animationPresentationStatus.currentStep + 1} /{" "}
+            {Math.max(animationPresentationStatus.totalSteps, 1)}
+          </span>
+          <button type="button" onClick={() => app.stopAnimationPresentation?.()}>
+            {t("buttons.close")}
+          </button>
+        </div>
       )}
       {eyeDropperState && editorInterface.formFactor !== "phone" && (
         <EyeDropper
@@ -537,6 +568,15 @@ const LayerUI = ({
           onClose={() => {
             setAppState({ openDialog: null });
           }}
+        />
+      )}
+      {appState.openDialog?.name === "animationFlow" && (
+        <AnimationFlowDialog
+          elements={elements}
+          appState={appState}
+          actionManager={actionManager}
+          app={app}
+          onCloseRequest={() => setAppState({ openDialog: null })}
         />
       )}
       <ActiveConfirmDialog />

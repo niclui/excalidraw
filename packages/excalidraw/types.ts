@@ -378,7 +378,7 @@ export interface AppState {
   openSidebar: { name: SidebarName; tab?: SidebarTabName } | null;
   openDialog:
     | null
-    | { name: "imageExport" | "help" | "jsonExport" }
+    | { name: "imageExport" | "help" | "jsonExport" | "animationFlow" }
     | { name: "ttd"; tab: "text-to-diagram" | "mermaid" }
     | { name: "commandPalette" }
     | { name: "settings" }
@@ -741,6 +741,12 @@ export type AppClassProperties = {
   setOpenDialog: App["setOpenDialog"];
   insertEmbeddableElement: App["insertEmbeddableElement"];
   onMagicframeToolSelect: App["onMagicframeToolSelect"];
+  startAnimationPresentation: App["startAnimationPresentation"];
+  stopAnimationPresentation: App["stopAnimationPresentation"];
+  toggleAnimationPresentationPlayback: App["toggleAnimationPresentationPlayback"];
+  nextAnimationPresentationStep: App["nextAnimationPresentationStep"];
+  previousAnimationPresentationStep: App["previousAnimationPresentationStep"];
+  getAnimationPresentationStatus: App["getAnimationPresentationStatus"];
   getName: App["getName"];
   dismissLinearEditor: App["dismissLinearEditor"];
   flowChartCreator: App["flowChartCreator"];
@@ -944,6 +950,13 @@ export type EmbedsValidationStatus = Map<
 export type ElementsPendingErasure = Set<ExcalidrawElement["id"]>;
 
 export type PendingExcalidrawElements = ExcalidrawElement[];
+
+export type AnimationPresentationStatus = {
+  isPresenting: boolean;
+  isPlaying: boolean;
+  currentStep: number;
+  totalSteps: number;
+};
 
 /** Runtime gridSize value. Null indicates disabled grid. */
 export type NullableGridSize =

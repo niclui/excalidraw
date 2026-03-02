@@ -425,6 +425,10 @@ function CommandPaletteInner({
       ];
 
       const additionalCommands: CommandPaletteItem[] = [
+        actionToCommand(
+          actionManager.actions.openAnimationFlow,
+          DEFAULT_CATEGORIES.app,
+        ),
         {
           label: t("toolBar.library"),
           category: DEFAULT_CATEGORIES.app,
