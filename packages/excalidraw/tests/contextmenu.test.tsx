@@ -48,6 +48,7 @@ unmountComponent();
 
 const renderStaticScene = vi.spyOn(StaticScene, "renderStaticScene");
 beforeEach(() => {
+  delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
   localStorage.clear();
   renderStaticScene.mockClear();
   reseed(7);
@@ -57,12 +58,14 @@ const { h } = window;
 
 describe("contextMenu element", () => {
   beforeEach(async () => {
+    delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
     localStorage.clear();
     renderStaticScene.mockClear();
     reseed(7);
     setDateTimeForTests("201933152653");
 
     await render(<Excalidraw handleKeyboardGlobally={true} />);
+    await h.app.components.resetComponents();
   });
 
   beforeAll(() => {
@@ -152,7 +155,7 @@ describe("contextMenu element", () => {
     });
   });
 
-  it("shows component actions for linked component instance", () => {
+  it("shows component actions for linked component instance", async () => {
     const rectangle = API.createElement({
       type: "rectangle",
       x: 0,
@@ -160,16 +163,15 @@ describe("contextMenu element", () => {
       width: 200,
       height: 200,
     });
+    await h.app.components.addComponent({
+      name: "CardComponent",
+      scope: "document",
+      ownerId: null,
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
     const instanceElements = createComponentInstanceElements({
-      definition: {
-        id: "component-1",
-        name: "CardComponent",
-        scope: "document",
-        ownerId: null,
-        created: Date.now(),
-        updated: Date.now(),
-        elements: [rectangle],
-      },
+      definition: component,
     });
     API.setElements(instanceElements);
     API.setSelectedElements([instanceElements[0]]);
@@ -188,6 +190,45 @@ describe("contextMenu element", () => {
     expect(
       contextMenu?.querySelector('li[data-testid="detachComponentInstance"]'),
     ).not.toBeNull();
+  });
+
+  it("hides edit component action for non-owner linked instances", async () => {
+    (window as any).EXCALIDRAW_COMPONENTS_USER_ID = "viewer-user-id";
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    await h.app.components.addComponent({
+      name: "SharedComponent",
+      scope: "document",
+      ownerId: "owner-user-id",
+      elements: [rectangle],
+    });
+    const [component] = await h.app.components.getLatestComponents();
+    const instanceElements = createComponentInstanceElements({
+      definition: component,
+    });
+    API.setElements(instanceElements);
+    API.setSelectedElements([instanceElements[0]]);
+
+    fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const contextMenu = UI.queryContextMenu();
+    expect(contextMenu).not.toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="editComponentMaster"]'),
+    ).toBeNull();
+    expect(
+      contextMenu?.querySelector('li[data-testid="detachComponentInstance"]'),
+    ).not.toBeNull();
+    delete (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
   });
 
   it("shows context menu for element", () => {

@@ -2900,6 +2900,15 @@ class App extends React.Component<AppProps, AppState> {
     return token || null;
   };
 
+  public canEditComponentDefinition = (componentId: string) => {
+    const component = this.components.getComponentById(componentId);
+    if (!component) {
+      return false;
+    }
+    const currentUserId = this.getCurrentUserId();
+    return !component.ownerId || component.ownerId === currentUserId;
+  };
+
   public createComponentFromSelection = async ({
     name,
     scope = "document",
@@ -3054,8 +3063,7 @@ class App extends React.Component<AppProps, AppState> {
     if (!component) {
       return;
     }
-    const currentUserId = this.getCurrentUserId();
-    if (component.ownerId && component.ownerId !== currentUserId) {
+    if (!this.canEditComponentDefinition(componentId)) {
       this.setState({
         errorMessage: t("errors.componentOwnershipError"),
       });

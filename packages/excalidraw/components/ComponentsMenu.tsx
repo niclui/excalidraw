@@ -29,6 +29,7 @@ export const ComponentsMenu = React.memo(() => {
   const [scope, setScope] = useState<ComponentDefinition["scope"]>("personal");
   const [search, setSearch] = useState("");
   const [svgCache] = useState(() => new Map());
+  const currentUserId = app.getCurrentUserId?.() || null;
 
   const elements = useExcalidrawElements();
   const pendingElements = useMemo(() => {
@@ -104,6 +105,9 @@ export const ComponentsMenu = React.memo(() => {
               key={component.id}
               component={component}
               svgCache={svgCache}
+              canEdit={
+                !component.ownerId || component.ownerId === currentUserId
+              }
               onDragStart={onDragStart}
               onEdit={() => app.enterComponentEditMode(component.id)}
               onDelete={() => app.removeComponentDefinition(component.id)}

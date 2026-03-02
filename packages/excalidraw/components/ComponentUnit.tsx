@@ -18,6 +18,7 @@ export const ComponentUnit = ({
   onEdit,
   onDelete,
   svgCache,
+  canEdit,
 }: {
   component: ComponentDefinition;
   onDragStart: (
@@ -27,6 +28,7 @@ export const ComponentUnit = ({
   onEdit: (component: ComponentDefinition) => void;
   onDelete: (component: ComponentDefinition) => void;
   svgCache: SvgCache;
+  canEdit: boolean;
 }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const svg = useLibraryItemSvg(
@@ -64,7 +66,12 @@ export const ComponentUnit = ({
               type="button"
               icon={pencilIcon}
               aria-label={t("labels.editComponent")}
-              title={t("labels.editComponent")}
+              title={
+                canEdit
+                  ? t("labels.editComponent")
+                  : t("errors.componentOwnershipError")
+              }
+              disabled={!canEdit}
               onClick={() => onEdit(component)}
             />
             <ToolButton
