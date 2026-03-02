@@ -401,6 +401,7 @@ export interface AppState {
   shouldCacheIgnoreZoom: boolean;
   toast: { message: string; closable?: boolean; duration?: number } | null;
   zenModeEnabled: boolean;
+  purpleModeEnabled: boolean;
   theme: Theme;
   /** grid cell px size */
   gridSize: number;

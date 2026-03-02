@@ -15,6 +15,7 @@ import {
   actionToggleStats,
   actionToggleTheme,
   actionToggleZenMode,
+  actionTogglePurpleMode,
 } from "../../actions";
 import { actionToggleViewMode } from "../../actions/actionToggleViewMode";
 import { getShortcutFromShortcutName } from "../../actions/shortcuts";
@@ -480,6 +481,24 @@ export const PreferencesToggleZenModeItem = () => {
   );
 };
 
+const PreferencesTogglePurpleModeItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.purpleModeEnabled}
+      shortcut={getShortcutFromShortcutName("purpleMode")}
+      onSelect={(event) => {
+        actionManager.executeAction(actionTogglePurpleMode);
+        event.preventDefault();
+      }}
+    >
+      {t("buttons.purpleMode")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
 const PreferencesToggleViewModeItem = () => {
   const { t } = useI18n();
   const actionManager = useExcalidrawActionManager();
@@ -536,6 +555,7 @@ export const Preferences = ({
             <PreferencesToggleSnapModeItem />
             <PreferencesToggleGridModeItem />
             <PreferencesToggleZenModeItem />
+            <PreferencesTogglePurpleModeItem />
             <PreferencesToggleViewModeItem />
             <PreferencesToggleElementPropertiesItem />
           </>
@@ -550,6 +570,7 @@ Preferences.ToggleToolLock = PreferencesToggleToolLockItem;
 Preferences.ToggleSnapMode = PreferencesToggleSnapModeItem;
 Preferences.ToggleGridMode = PreferencesToggleGridModeItem;
 Preferences.ToggleZenMode = PreferencesToggleZenModeItem;
+Preferences.TogglePurpleMode = PreferencesTogglePurpleModeItem;
 Preferences.ToggleViewMode = PreferencesToggleViewModeItem;
 Preferences.ToggleElementProperties = PreferencesToggleElementPropertiesItem;
 

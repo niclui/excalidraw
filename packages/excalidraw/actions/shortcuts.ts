@@ -51,6 +51,7 @@ export type ShortcutName =
       | "saveToActiveFile"
       | "toggleShortcuts"
       | "wrapSelectionInFrame"
+      | "purpleMode"
     >
   | "saveScene"
   | "imageExport"
@@ -119,6 +120,7 @@ export const shortcutMap: Record<ShortcutName, string[]> = {
   searchMenu: [getShortcutKey("CtrlOrCmd+F")],
   wrapSelectionInFrame: [],
   toolLock: [getShortcutKey("Q")],
+  purpleMode: [getShortcutKey("Alt+P")],
 };
 
 export const getShortcutFromShortcutName = (name: ShortcutName, idx = 0) => {

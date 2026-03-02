@@ -78,6 +78,7 @@ export {
 
 export { actionToggleGridMode } from "./actionToggleGridMode";
 export { actionToggleZenMode } from "./actionToggleZenMode";
+export { actionTogglePurpleMode } from "./actionTogglePurpleMode";
 export { actionToggleObjectsSnapMode } from "./actionToggleObjectsSnapMode";
 
 export { actionToggleStats } from "./actionToggleStats";

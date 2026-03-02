@@ -280,4 +280,65 @@
     --color-border-outline-variant: #46464f;
     --color-surface-primary-container: #403e6a;
   }
+
+  &.theme--purple {
+    --color-primary: #9b59b6;
+    --color-primary-darker: #8e44ad;
+    --color-primary-darkest: #7d3c98;
+    --color-primary-light: #ebdef0;
+    --color-primary-light-darker: #d7bde2;
+    --color-primary-hover: #8e44ad;
+    --color-selection: #9b59b6;
+    --color-surface-high: #f0e6f6;
+    --color-surface-mid: #f5f0f8;
+    --color-surface-low: #e8daf0;
+    --color-surface-primary-container: #e8d5f5;
+    --color-brand-hover: #8e44ad;
+    --color-brand-active: #7d3c98;
+    --color-on-primary-container: #2c003e;
+    --color-logo-icon: #9b59b6;
+    --island-bg-color: #faf5ff;
+    --island-bg-color-alt: #f5eefa;
+    --default-bg-color: #fdf8ff;
+    --input-bg-color: #faf5ff;
+    --input-hover-bg-color: #f0e6f6;
+    --focus-highlight-color: #d7bde2;
+    --color-slider-track: hsl(280, 60%, 88%);
+    --color-badge: #6c3483;
+    --background-color-badge: #ebdef0;
+    --button-hover-bg: var(--color-surface-high);
+    --button-active-bg: var(--color-surface-high);
+    --button-active-border: var(--color-brand-active);
+    --default-border-color: var(--color-surface-high);
+    --keybinding-color: #9b59b6;
+  }
+
+  &.theme--dark.theme--purple {
+    --color-primary: #c39bd3;
+    --color-primary-darker: #d2b4de;
+    --color-primary-darkest: #dcc6e0;
+    --color-primary-light: #4a3558;
+    --color-primary-light-darker: #3d2a4a;
+    --color-primary-hover: #d2b4de;
+    --color-selection: #7d3c98;
+    --color-surface-high: #362845;
+    --color-surface-mid: hsl(280, 20%, 12%);
+    --color-surface-low: hsl(280, 18%, 16%);
+    --color-surface-lowest: hsl(280, 15%, 7%);
+    --color-surface-primary-container: #4a2d66;
+    --color-brand-hover: #d2b4de;
+    --color-brand-active: #dcc6e0;
+    --color-on-primary-container: #ebdef0;
+    --color-on-surface: #e8daf0;
+    --color-logo-icon: #c39bd3;
+    --island-bg-color: #2a1f35;
+    --island-bg-color-alt: hsl(280, 25%, 14%);
+    --default-bg-color: #1a1024;
+    --input-bg-color: #1a1024;
+    --input-border-color: #3d2a4a;
+    --input-hover-bg-color: #221530;
+    --focus-highlight-color: #7d3c98;
+    --color-slider-track: hsl(280, 30%, 35%);
+    --keybinding-color: #9b59b6;
+  }
 }

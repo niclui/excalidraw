@@ -12,7 +12,7 @@ export const useCreatePortalContainer = (opts?: {
   const [div, setDiv] = useState<HTMLDivElement | null>(null);
 
   const editorInterface = useEditorInterface();
-  const { theme } = useUIAppState();
+  const { theme, purpleModeEnabled } = useUIAppState();
 
   const { container: excalidrawContainer } = useExcalidrawContainer();
 
@@ -25,8 +25,15 @@ export const useCreatePortalContainer = (opts?: {
         editorInterface.formFactor === "phone",
       );
       div.classList.toggle("theme--dark", theme === THEME.DARK);
+      div.classList.toggle("theme--purple", purpleModeEnabled);
     }
-  }, [div, theme, editorInterface.formFactor, opts?.className]);
+  }, [
+    div,
+    theme,
+    purpleModeEnabled,
+    editorInterface.formFactor,
+    opts?.className,
+  ]);
 
   useLayoutEffect(() => {
     const container = opts?.parentSelector

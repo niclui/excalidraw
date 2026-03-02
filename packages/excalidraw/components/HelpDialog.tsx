@@ -202,6 +202,7 @@ const getKeyboardShortcutGroups = (): Record<
       shortcuts: [getShortcutKey("Alt+Arrow Key")],
     },
     { label: t("buttons.zenMode"), shortcuts: fromMap("zenMode") },
+    { label: t("buttons.purpleMode"), shortcuts: fromMap("purpleMode") },
     {
       label: t("buttons.objectsSnapMode"),
       shortcuts: fromMap("objectsSnapMode"),

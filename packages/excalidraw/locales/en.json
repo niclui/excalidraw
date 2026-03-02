@@ -233,6 +233,7 @@
     "lightMode": "Light mode",
     "systemMode": "System mode",
     "zenMode": "Zen mode",
+    "purpleMode": "Purple mode",
     "objectsSnapMode": "Snap to objects",
     "exitZenMode": "Exit zen mode",
     "cancel": "Cancel",
