@@ -88,7 +88,7 @@ import {
   isShallowEqual,
   arrayToMap,
   applyDarkModeFilter,
-  type EXPORT_IMAGE_TYPES,
+  EXPORT_IMAGE_TYPES,
   randomInteger,
   CLASSES,
   Emitter,
@@ -351,7 +351,7 @@ import {
   type ParsedDataTransferFile,
 } from "../clipboard";
 
-import { exportCanvas, loadFromBlob } from "../data";
+import { exportBuildUpAnimationGif, exportCanvas, loadFromBlob } from "../data";
 import Library, { distributeLibraryItemsOnSquareGrid } from "../data/library";
 import { restoreAppState, restoreElements } from "../data/restore";
 import { getCenter, getDistance } from "../gesture";
@@ -2349,17 +2349,20 @@ class App extends React.Component<AppProps, AppState> {
     opts: { exportingFrame: ExcalidrawFrameLikeElement | null },
   ) => {
     trackEvent("export", type, "ui");
-    const fileHandle = await exportCanvas(
-      type,
-      elements,
-      this.state,
-      this.files,
-      {
-        exportBackground: this.state.exportBackground,
-        name: this.getName(),
-        viewBackgroundColor: this.state.viewBackgroundColor,
-        exportingFrame: opts.exportingFrame,
-      },
+    const fileHandle = await (
+      type === EXPORT_IMAGE_TYPES.gif
+        ? exportBuildUpAnimationGif(elements, this.state, this.files, {
+            exportBackground: this.state.exportBackground,
+            name: this.getName(),
+            viewBackgroundColor: this.state.viewBackgroundColor,
+            exportingFrame: opts.exportingFrame,
+          })
+        : exportCanvas(type, elements, this.state, this.files, {
+            exportBackground: this.state.exportBackground,
+            name: this.getName(),
+            viewBackgroundColor: this.state.viewBackgroundColor,
+            exportingFrame: opts.exportingFrame,
+          })
     )
       .catch(muteFSAbortError)
       .catch((error) => {

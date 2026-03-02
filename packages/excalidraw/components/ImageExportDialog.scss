@@ -171,5 +171,39 @@
         }
       }
     }
+
+    &__build-up-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      &__button {
+        all: unset;
+        box-sizing: border-box;
+        width: 2rem;
+        height: 2rem;
+        border-radius: var(--border-radius-md);
+        border: 1px solid var(--default-border-color);
+        background-color: var(--button-gray-1);
+        color: var(--text-primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+      }
+
+      &__input {
+        width: 4.5rem;
+      }
+
+      &__max-step {
+        min-width: 2.5rem;
+      }
+    }
   }
 }

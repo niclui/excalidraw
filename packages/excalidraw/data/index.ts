@@ -2,6 +2,7 @@ import {
   DEFAULT_EXPORT_PADDING,
   DEFAULT_FILENAME,
   IMAGE_MIME_TYPES,
+  EXPORT_IMAGE_TYPES,
   isFirefox,
   MIME_TYPES,
   cloneJSON,
@@ -28,9 +29,14 @@ import {
 import { t } from "../i18n";
 import { getSelectedElements, isSomeElementSelected } from "../scene";
 import { exportToCanvas, exportToSvg } from "../scene/export";
+import {
+  getBuildUpAnimationElementsForStep,
+  getMaxBuildUpAnimationStep,
+} from "../buildUpAnimation";
 
 import { canvasToBlob } from "./blob";
 import { fileSave } from "./filesystem";
+import { canvasesToGifBlob } from "./gif";
 import { serializeAsJSON } from "./json";
 
 import type { FileSystemHandle } from "./filesystem";
@@ -213,4 +219,60 @@ export const exportCanvas = async (
     // shouldn't happen
     throw new Error("Unsupported export type");
   }
+};
+
+export const exportBuildUpAnimationGif = async (
+  elements: ExportedElements,
+  appState: AppState,
+  files: BinaryFiles,
+  {
+    exportBackground,
+    exportPadding = DEFAULT_EXPORT_PADDING,
+    viewBackgroundColor,
+    name = appState.name || DEFAULT_FILENAME,
+    fileHandle = null,
+    exportingFrame = null,
+    frameDelay = 800,
+  }: {
+    exportBackground: boolean;
+    exportPadding?: number;
+    viewBackgroundColor: string;
+    name?: string;
+    fileHandle?: FileSystemHandle | null;
+    exportingFrame: ExcalidrawFrameLikeElement | null;
+    frameDelay?: number;
+  },
+) => {
+  if (elements.length === 0) {
+    throw new Error(t("alerts.cannotExportEmptyCanvas"));
+  }
+
+  const maxBuildStep = getMaxBuildUpAnimationStep(elements);
+  const animationFrames = await Promise.all(
+    Array.from({ length: maxBuildStep + 1 }, async (_value, step) => {
+      return exportToCanvas(
+        getBuildUpAnimationElementsForStep(elements, step),
+        appState,
+        files,
+        {
+          exportBackground,
+          viewBackgroundColor,
+          exportPadding,
+          exportingFrame,
+        },
+      );
+    }),
+  );
+
+  const blob = await canvasesToGifBlob(animationFrames, {
+    frameDelay,
+  });
+
+  return fileSave(blob, {
+    description: "Export to GIF",
+    name,
+    extension: EXPORT_IMAGE_TYPES.gif,
+    mimeTypes: [IMAGE_MIME_TYPES.gif],
+    fileHandle,
+  });
 };

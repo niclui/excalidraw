@@ -88,6 +88,8 @@
     "drawingCanvas": "Drawing canvas",
     "clearCanvas": "Clear canvas",
     "layers": "Layers",
+    "animation": "Animation",
+    "buildUpStep": "Build step",
     "actions": "Actions",
     "language": "Language",
     "liveCollaboration": "Live collaboration...",
@@ -491,6 +493,7 @@
       "onlySelected": "Only selected",
       "darkMode": "Dark mode",
       "embedScene": "Embed scene",
+      "buildUpPreview": "Build-up preview",
       "scale": "Scale",
       "padding": "Padding"
     },
@@ -499,13 +502,17 @@
     },
     "title": {
       "exportToPng": "Export to PNG",
+      "exportToGif": "Export to GIF",
       "exportToSvg": "Export to SVG",
       "copyPngToClipboard": "Copy PNG to clipboard"
     },
     "button": {
       "exportToPng": "PNG",
+      "exportToGif": "GIF",
       "exportToSvg": "SVG",
-      "copyPngToClipboard": "Copy to clipboard"
+      "copyPngToClipboard": "Copy to clipboard",
+      "playPreview": "Play preview",
+      "stopPreview": "Stop preview"
     }
   },
   "encrypted": {
