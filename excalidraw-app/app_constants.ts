@@ -39,6 +39,7 @@ export const ROOM_ID_BYTES = 10;
 export const STORAGE_KEYS = {
   LOCAL_STORAGE_ELEMENTS: "excalidraw",
   LOCAL_STORAGE_APP_STATE: "excalidraw-state",
+  LOCAL_STORAGE_COMPONENTS: "excalidraw-components-state",
   LOCAL_STORAGE_COLLAB: "excalidraw-collab",
   LOCAL_STORAGE_THEME: "excalidraw-theme",
   LOCAL_STORAGE_DEBUG: "excalidraw-debug",
@@ -46,6 +47,7 @@ export const STORAGE_KEYS = {
   VERSION_FILES: "version-files",
 
   IDB_LIBRARY: "excalidraw-library",
+  IDB_COMPONENTS: "excalidraw-components",
   IDB_TTD_CHATS: "excalidraw-ttd-chats",
 
   // do not use apart from migrations

@@ -257,6 +257,8 @@ export const STRING_MIME_TYPES = {
   excalidrawlib: "application/vnd.excalidrawlib+json",
   // list of excalidraw library item ids
   excalidrawlibIds: "application/vnd.excalidrawlib.ids+json",
+  // list of excalidraw component ids
+  excalidrawcomponentIds: "application/vnd.excalidraw.component.ids+json",
 } as const;
 
 export const MIME_TYPES = {
@@ -430,6 +432,7 @@ export const DEFAULT_ELEMENT_PROPS: {
 };
 
 export const LIBRARY_SIDEBAR_TAB = "library";
+export const COMPONENTS_SIDEBAR_TAB = "components";
 export const CANVAS_SEARCH_TAB = "search";
 
 export const DEFAULT_SIDEBAR = {

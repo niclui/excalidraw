@@ -8,6 +8,7 @@ import type { CaptureUpdateActionType } from "@excalidraw/element";
 import type {
   AppClassProperties,
   AppState,
+  ComponentDefinitions,
   ExcalidrawProps,
   BinaryFiles,
   UIAppState,
@@ -27,6 +28,7 @@ export type ActionResult =
       elements?: readonly ExcalidrawElement[] | null;
       appState?: Partial<AppState> | null;
       files?: BinaryFiles | null;
+      components?: ComponentDefinitions | null;
       captureUpdate: CaptureUpdateActionType;
       replaceFiles?: boolean;
     }

@@ -164,6 +164,9 @@ export const actionSaveToActiveFile = register({
   },
   perform: async (elements, appState, value, app) => {
     const fileHandleExists = !!appState.fileHandle;
+    const documentComponents = (
+      await app.components.getLatestComponents()
+    ).filter((component) => component.scope === "document");
 
     try {
       const { fileHandle } = isImageFileHandle(appState.fileHandle)
@@ -173,7 +176,13 @@ export const actionSaveToActiveFile = register({
             app.files,
             app.getName(),
           )
-        : await saveAsJSON(elements, appState, app.files, app.getName());
+        : await saveAsJSON(
+            elements,
+            appState,
+            app.files,
+            app.getName(),
+            documentComponents,
+          );
 
       return {
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
@@ -212,6 +221,9 @@ export const actionSaveFileToDisk = register({
   viewMode: true,
   trackEvent: { category: "export" },
   perform: async (elements, appState, value, app) => {
+    const documentComponents = (
+      await app.components.getLatestComponents()
+    ).filter((component) => component.scope === "document");
     try {
       const { fileHandle } = await saveAsJSON(
         elements,
@@ -221,6 +233,7 @@ export const actionSaveFileToDisk = register({
         },
         app.files,
         app.getName(),
+        documentComponents,
       );
       return {
         captureUpdate: CaptureUpdateAction.EVENTUALLY,

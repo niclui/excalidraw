@@ -42,6 +42,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     detectScroll = true,
     handleKeyboardGlobally = false,
     onLibraryChange,
+    onComponentsChange,
     autoFocus = false,
     generateIdForFile,
     onLinkOpen,
@@ -136,6 +137,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           detectScroll={detectScroll}
           handleKeyboardGlobally={handleKeyboardGlobally}
           onLibraryChange={onLibraryChange}
+          onComponentsChange={onComponentsChange}
           autoFocus={autoFocus}
           generateIdForFile={generateIdForFile}
           onLinkOpen={onLinkOpen}
@@ -254,6 +256,12 @@ export {
   loadLibraryFromBlob,
 } from "./data/blob";
 export { mergeLibraryItems, getLibraryItemsHash } from "./data/library";
+export {
+  mergeComponentDefinitions,
+  getComponentDefinitionsHash,
+  useHandleComponents,
+  restoreComponentDefinitions,
+} from "./data/components";
 export { isLinearElement } from "@excalidraw/element";
 
 export {

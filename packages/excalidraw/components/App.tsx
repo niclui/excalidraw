@@ -353,6 +353,15 @@ import {
 
 import { exportCanvas, loadFromBlob } from "../data";
 import Library, { distributeLibraryItemsOnSquareGrid } from "../data/library";
+import Components, {
+  applyComponentDefinitionToLinkedInstance,
+  createComponentInstanceElements,
+  detachComponentInstanceElements,
+  getLinkedComponentMetadata,
+  isLinkedComponentElement,
+  mergeComponentDefinitions,
+  restoreComponentDefinitions,
+} from "../data/components";
 import { restoreAppState, restoreElements } from "../data/restore";
 import { getCenter, getDistance } from "../gesture";
 import { History } from "../history";
@@ -453,7 +462,10 @@ import { findShapeByKey } from "./shapes";
 
 import UnlockPopup from "./UnlockPopup";
 
-import type { ExcalidrawLibraryIds } from "../data/types";
+import type {
+  ExcalidrawComponentIds,
+  ExcalidrawLibraryIds,
+} from "../data/types";
 
 import type {
   RenderInteractiveSceneCallback,
@@ -470,6 +482,7 @@ import type {
   AppProps,
   AppState,
   BinaryFileData,
+  ComponentDefinitions,
   ExcalidrawImperativeAPI,
   BinaryFiles,
   Gesture,
@@ -610,7 +623,14 @@ class App extends React.Component<AppProps, AppState> {
   public visibleElements: readonly NonDeletedExcalidrawElement[];
   private resizeObserver: ResizeObserver | undefined;
   public library: AppClassProperties["library"];
+  public components: AppClassProperties["components"];
   public libraryItemsFromStorage: LibraryItems | undefined;
+  private componentEditSession: {
+    componentId: string;
+    sceneElements: readonly ExcalidrawElement[];
+    appState: AppState;
+  } | null = null;
+  private suppressLinkedComponentDetach = false;
   public id: string;
   private store: Store;
   private history: History;
@@ -725,6 +745,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.id = nanoid();
     this.library = new Library(this);
+    this.components = new Components(this);
     this.actionManager = new ActionManager(
       this.syncActionResult,
       () => this.state,
@@ -747,6 +768,7 @@ class App extends React.Component<AppProps, AppState> {
         applyDeltas: this.applyDeltas,
         mutateElement: this.mutateElement,
         updateLibrary: this.library.updateLibrary,
+        updateComponents: this.components.updateComponents,
         addFiles: this.addFiles,
         resetScene: this.resetScene,
         getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
@@ -759,6 +781,7 @@ class App extends React.Component<AppProps, AppState> {
         getSceneElements: this.getSceneElements,
         getAppState: () => this.state,
         getFiles: () => this.files,
+        getComponents: this.components.getLatestComponents,
         getName: this.getName,
         registerAction: (action: Action) => {
           this.actionManager.registerAction(action);
@@ -2667,6 +2690,10 @@ class App extends React.Component<AppProps, AppState> {
       this.addNewImagesToImageCache();
     }
 
+    if (actionResult.components) {
+      this.applyDocumentComponents(actionResult.components);
+    }
+
     if (actionResult.appState || editingTextElement || this.state.contextMenu) {
       let viewModeEnabled = actionResult?.appState?.viewModeEnabled || false;
       let zenModeEnabled = actionResult?.appState?.zenModeEnabled || false;
@@ -2767,8 +2794,271 @@ class App extends React.Component<AppProps, AppState> {
       }));
       this.resetStore();
       this.resetHistory();
+      this.applyDocumentComponents([]);
     },
   );
+
+  private applyDocumentComponents = (
+    sceneComponents: ComponentDefinitions = [],
+  ) => {
+    const restored = restoreComponentDefinitions(sceneComponents).map(
+      (component) => ({
+        ...component,
+        scope: "document" as const,
+      }),
+    );
+
+    this.components.setComponents((current) => {
+      const personal = current.filter(
+        (component) => component.scope === "personal",
+      );
+      return mergeComponentDefinitions(personal, restored);
+    });
+  };
+
+  public getCurrentUserId = () => {
+    const explicit = (window as any).EXCALIDRAW_COMPONENTS_USER_ID;
+    if (explicit) {
+      return String(explicit);
+    }
+    const token = document.cookie
+      .split("; ")
+      .find((entry) => entry.startsWith("excplus-auth="))
+      ?.split("=")[1];
+    return token || null;
+  };
+
+  private detachLinkedComponentInstances = <TElement extends ExcalidrawElement>(
+    definitionId: string,
+    instanceIds: string[],
+    detachReason: string,
+    elements: readonly TElement[] = this.scene.getElementsIncludingDeleted() as readonly TElement[],
+  ) => {
+    let nextElements: readonly TElement[] = elements;
+    for (const instanceId of instanceIds) {
+      nextElements = detachComponentInstanceElements(nextElements, {
+        definitionId,
+        instanceId,
+        detachReason,
+      });
+    }
+    return nextElements;
+  };
+
+  private applyLinkedComponentUpdate = <TElement extends ExcalidrawElement>(
+    definition: ComponentDefinitions[number],
+    elements: readonly TElement[],
+  ) => {
+    const instances = new Map<string, TElement[]>();
+    for (const element of elements) {
+      const metadata = getLinkedComponentMetadata(element);
+      if (
+        !metadata ||
+        metadata.definitionId !== definition.id ||
+        !metadata.linked
+      ) {
+        continue;
+      }
+      const bucket = instances.get(metadata.instanceId) || [];
+      bucket.push(element);
+      instances.set(metadata.instanceId, bucket);
+    }
+
+    let nextElements: readonly TElement[] = elements;
+    for (const [, instanceElements] of instances) {
+      const result = applyComponentDefinitionToLinkedInstance({
+        sceneElements: nextElements,
+        definition,
+        instanceElements,
+      });
+      nextElements = result.nextElements;
+    }
+    return nextElements;
+  };
+
+  public enterComponentEditMode = async (componentId: string) => {
+    if (this.state.editingComponentId) {
+      return;
+    }
+    const component = this.components.getComponentById(componentId);
+    if (!component) {
+      return;
+    }
+    if (
+      component.ownerId &&
+      this.getCurrentUserId() &&
+      component.ownerId !== this.getCurrentUserId()
+    ) {
+      this.setState({
+        errorMessage: t("errors.componentOwnershipError"),
+      });
+      return;
+    }
+
+    this.componentEditSession = {
+      componentId,
+      sceneElements: this.scene.getElementsIncludingDeleted().slice(),
+      appState: this.state,
+    };
+
+    this.updateScene({
+      elements: component.elements.map((element) => deepCopyElement(element)),
+      appState: {
+        editingComponentId: componentId,
+        selectedElementIds: {},
+        selectedGroupIds: {},
+        editingGroupId: null,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  };
+
+  public cancelComponentEditMode = () => {
+    if (!this.componentEditSession) {
+      return;
+    }
+    const session = this.componentEditSession;
+    this.componentEditSession = null;
+
+    this.updateScene({
+      elements: session.sceneElements,
+      appState: {
+        ...session.appState,
+        editingComponentId: null,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  };
+
+  public saveComponentEditMode = async () => {
+    if (!this.componentEditSession) {
+      return;
+    }
+
+    const { componentId, sceneElements, appState } = this.componentEditSession;
+
+    const nextDefinitionElements = this.scene
+      .getNonDeletedElements()
+      .map((element) => deepCopyElement(element));
+
+    let nextDefinition: ComponentDefinitions[number] | null = null;
+    await this.components.updateComponent(componentId, (component) => {
+      nextDefinition = {
+        ...component,
+        updated: Date.now(),
+        elements: nextDefinitionElements,
+      };
+      return nextDefinition;
+    });
+
+    this.componentEditSession = null;
+
+    this.updateScene({
+      elements: sceneElements,
+      appState: {
+        ...appState,
+        editingComponentId: null,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+
+    if (nextDefinition) {
+      const nextElements = this.applyLinkedComponentUpdate(
+        nextDefinition,
+        sceneElements,
+      );
+      this.suppressLinkedComponentDetach = true;
+      this.updateScene({
+        elements: nextElements,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+      setTimeout(() => {
+        this.suppressLinkedComponentDetach = false;
+      });
+    }
+  };
+
+  public removeComponentDefinition = async (id: string) => {
+    const allElements = this.scene.getElementsIncludingDeleted();
+    const instanceIds = new Set<string>();
+    for (const element of allElements) {
+      const metadata = getLinkedComponentMetadata(element);
+      if (metadata?.definitionId === id && metadata.linked) {
+        instanceIds.add(metadata.instanceId);
+      }
+    }
+
+    await this.components.removeComponent(id);
+
+    if (!instanceIds.size) {
+      return;
+    }
+
+    const nextElements = this.detachLinkedComponentInstances(
+      id,
+      Array.from(instanceIds),
+      "definition-deleted",
+      allElements,
+    );
+    this.suppressLinkedComponentDetach = true;
+    this.updateScene({
+      elements: nextElements,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    setTimeout(() => {
+      this.suppressLinkedComponentDetach = false;
+    });
+  };
+
+  private handleLinkedComponentIncrement = (increment: any) => {
+    if (this.suppressLinkedComponentDetach || this.state.editingComponentId) {
+      return;
+    }
+
+    const updatedIds = Object.keys(increment?.delta?.elements?.updated || {});
+    if (!updatedIds.length) {
+      return;
+    }
+
+    const grouped = new Map<string, Set<string>>();
+    const sceneElementsMap = this.scene.getElementsMapIncludingDeleted();
+    for (const id of updatedIds) {
+      const element = sceneElementsMap.get(id);
+      if (!element || !isLinkedComponentElement(element)) {
+        continue;
+      }
+      const metadata = getLinkedComponentMetadata(element);
+      if (!metadata?.linked) {
+        continue;
+      }
+      const instanceIds = grouped.get(metadata.definitionId) || new Set();
+      instanceIds.add(metadata.instanceId);
+      grouped.set(metadata.definitionId, instanceIds);
+    }
+
+    if (!grouped.size) {
+      return;
+    }
+
+    let nextElements = this.scene.getElementsIncludingDeleted();
+    for (const [definitionId, instanceIds] of grouped) {
+      nextElements = this.detachLinkedComponentInstances(
+        definitionId,
+        Array.from(instanceIds),
+        "instance-edited",
+        nextElements,
+      );
+    }
+
+    this.suppressLinkedComponentDetach = true;
+    this.updateScene({
+      elements: nextElements,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    setTimeout(() => {
+      this.suppressLinkedComponentDetach = false;
+    });
+  };
 
   private initializeScene = async () => {
     if ("launchQueue" in window && "LaunchParams" in window) {
@@ -2809,6 +3099,11 @@ class App extends React.Component<AppProps, AppState> {
           .catch((error) => {
             console.error(error);
           });
+      }
+      if (initialData?.components) {
+        this.applyDocumentComponents(await initialData.components);
+      } else {
+        this.applyDocumentComponents([]);
       }
     } catch (error: any) {
       console.error(error);
@@ -3008,6 +3303,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.store.onDurableIncrementEmitter.on((increment) => {
       this.history.record(increment.delta);
+      this.handleLinkedComponentIncrement(increment);
     });
 
     const { onIncrement } = this.props;
@@ -3064,6 +3360,7 @@ class App extends React.Component<AppProps, AppState> {
     this.unmounted = true;
     this.removeEventListeners();
     this.library.destroy();
+    this.components.destroy();
     this.laserTrails.stop();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -11501,6 +11798,36 @@ class App extends React.Component<AppProps, AppState> {
     if (imageFiles.length > 0 && this.isToolSupported("image")) {
       return this.insertImages(imageFiles, sceneX, sceneY);
     }
+
+    const excalidrawComponentIds = dataTransferList.getData(
+      MIME_TYPES.excalidrawcomponentIds,
+    );
+    if (excalidrawComponentIds) {
+      try {
+        const { itemIds } = JSON.parse(
+          excalidrawComponentIds,
+        ) as ExcalidrawComponentIds;
+        const allComponents = await this.components.getLatestComponents();
+        const components = allComponents.filter((item) =>
+          itemIds.includes(item.id),
+        );
+        if (components.length) {
+          const instanceElements = components.flatMap((component) =>
+            createComponentInstanceElements({ definition: component }),
+          );
+
+          this.addElementsFromPasteOrLibrary({
+            elements: instanceElements,
+            position: event,
+            files: null,
+          });
+        }
+      } catch (error: any) {
+        this.setState({ errorMessage: error.message });
+      }
+      return;
+    }
+
     const excalidrawLibrary_ids = dataTransferList.getData(
       MIME_TYPES.excalidrawlibIds,
     );
@@ -11638,6 +11965,7 @@ class App extends React.Component<AppProps, AppState> {
           replaceFiles: true,
           captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         });
+        this.applyDocumentComponents(ret.data.components || []);
       } else if (ret.type === MIME_TYPES.excalidrawlib) {
         await this.library
           .updateLibrary({

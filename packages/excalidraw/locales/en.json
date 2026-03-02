@@ -101,6 +101,11 @@
     "collaborators": "Collaborators",
     "toggleGrid": "Toggle grid",
     "addToLibrary": "Add to library",
+    "createComponent": "Create component",
+    "editComponent": "Edit component",
+    "searchComponents": "Search components",
+    "componentName": "Component name",
+    "documentComponents": "Document components",
     "removeFromLibrary": "Remove from library",
     "libraryLoadingMessage": "Loading library…",
     "libraries": "Browse libraries",
@@ -292,6 +297,7 @@
       "iframe": "IFrame elements cannot be added to the library.",
       "image": "Support for adding images to the library coming soon!"
     },
+    "componentOwnershipError": "Only the component creator can edit this shared component.",
     "asyncPasteFailedOnRead": "Couldn't paste (couldn't read from system clipboard).",
     "asyncPasteFailedOnParse": "Couldn't paste.",
     "copyToSystemClipboardFailed": "Couldn't copy to clipboard."
